@@ -1,0 +1,2532 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1C2B33">
+    <title>CONVOY — Automotive Material Flow</title>
+    <style>
+        :root {
+            /* --- Core Industrial Palette --- */
+            --color-big-stone:      #1C2B33; /* Primary dark base / panel surface */
+            --color-bright-sun:     #FDB913; /* Hero accent / CTA / highlights */
+            --color-safety-orange:  #F4622C; /* Fault / warnings / disruption only */
+            --color-steel-teal:     #4A7C82; /* Secondary accent / borders / dividers / run dot */
+            --color-warm-white:     #E8E4DC; /* Primary text / soft off-white */
+            --color-blue-grey:      #8FA4AD; /* Muted blue-grey for Charge status & tertiary elements */
+
+            /* --- Semantic Surfaces & Panels --- */
+            --panel-bg:             rgba(28, 43, 51, 0.94); /* Big Stone with high opacity */
+            --panel-bg-solid:       #1C2B33;
+            --panel-border:         rgba(74, 124, 130, 0.38); /* Steel Teal subtle line */
+            --panel-divider:        rgba(74, 124, 130, 0.20);
+            --panel-shadow:         0 14px 40px rgba(10, 18, 22, 0.45);
+
+            /* --- Interactive Button Surfaces --- */
+            --btn-surface:          #23353F; /* Elevated Big Stone */
+            --btn-surface-hover:    #2A404C;
+            --btn-border:           rgba(74, 124, 130, 0.45);
+            --btn-border-hover:     var(--color-steel-teal);
+
+            /* --- Typography & Text Contrast --- */
+            --text-primary:         #E8E4DC; /* Warm off-white (~11.5:1 contrast vs Big Stone) */
+            --text-muted:           #9BB1B8; /* Muted teal-slate (~5.8:1 contrast vs Big Stone - WCAG AA) */
+            --text-inverse:         #142027; /* Deep tone for text over Bright Sun / Orange */
+
+            /* --- Status Semantics --- */
+            --status-run:           var(--color-steel-teal);    /* #4A7C82 */
+            --status-wait:          var(--color-bright-sun);    /* #FDB913 */
+            --status-fault:         var(--color-safety-orange); /* #F4622C */
+            --status-charge:        var(--color-blue-grey);     /* #8FA4AD */
+
+            /* --- Hero Accents & Functional States --- */
+            --hero-accent:          var(--color-bright-sun);
+            --hero-accent-subtle:   rgba(253, 185, 19, 0.12);
+            --alert-accent:         var(--color-safety-orange);
+            --alert-accent-subtle:  rgba(244, 98, 44, 0.14);
+
+            /* --- Station Accent Palette (Solid) --- */
+            --station-coil:         #B87333; /* 01 COIL  — Copper */
+            --station-press:        #4A7C9E; /* 02 PRESS — Steel Blue */
+            --station-biw:          #6B5B95; /* 03 BIW   — Slate Purple */
+            --station-paint:        #FDB913; /* 04 PAINT — Bright Sun (Hero zone) */
+            --station-hub:          #C1502E; /* 05 HUB   — Rust Red */
+            --station-engine:       #3E4C8A; /* E1 ENGIN — Indigo */
+            --station-marr:         #5B7B4F; /* 06 MARR  — Moss Green */
+            --station-final:        #F4622C; /* 07 FINAL — Safety Orange */
+            --station-pdi:          #3E8E8A; /* 08 PDI   — Teal */
+            --station-yard:         #7A8480; /* 09 YARD  — Neutral Holding Area */
+
+            /* Node ID Aliases (matching plantGraph data contract) */
+            --station-weld:         var(--station-biw);
+            --station-marriage:     var(--station-marr);
+            --station-quality:      var(--station-pdi);
+
+            /* --- Floating Label Zone Tints (~18% Opacity over Big Stone) --- */
+            --station-coil-tint:    rgba(184, 115,  51, 0.18);
+            --station-press-tint:   rgba( 74, 124, 158, 0.18);
+            --station-biw-tint:     rgba(107,  91, 149, 0.18);
+            --station-paint-tint:   rgba(253, 185,  19, 0.22); /* Hero zone */
+            --station-hub-tint:     rgba(193,  80,  46, 0.18);
+            --station-engine-tint:  rgba( 62,  76, 138, 0.18);
+            --station-marr-tint:    rgba( 91, 123,  79, 0.18);
+            --station-final-tint:   rgba(244,  98,  44, 0.18);
+            --station-pdi-tint:     rgba( 62, 142, 138, 0.18);
+            --station-yard-tint:    rgba(122, 132, 128, 0.18);
+
+            /* Compatibility mappings */
+            --ink:                  var(--text-primary);
+            --muted:                var(--text-muted);
+            --panel:                var(--panel-bg);
+            --line:                 var(--panel-divider);
+            --yellow:               var(--color-bright-sun);
+            --green:                var(--color-steel-teal);
+            --red:                  var(--color-safety-orange);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            scrollbar-color: var(--color-steel-teal) var(--color-big-stone);
+        }
+
+        body {
+            margin: 0;
+            background: var(--color-big-stone);
+            color: var(--text-primary);
+            font: 13px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+
+        button {
+            font: inherit;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        button:focus-visible {
+            outline: 2px solid var(--hero-accent);
+            outline-offset: 4px;
+        }
+
+        #world {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+        }
+
+        #world canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+        }
+
+        #scroll-space {
+            height: 1050vh;
+            pointer-events: none;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            box-shadow: var(--panel-shadow);
+            border-radius: 10px;
+        }
+
+        .eyebrow {
+            color: var(--text-muted);
+            font: 10px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace;
+            text-transform: uppercase;
+            letter-spacing: 1.8px;
+        }
+
+        header {
+            position: fixed;
+            top: 20px;
+            left: 24px;
+            right: 24px;
+            z-index: 10;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            pointer-events: none;
+            gap: 12px;
+        }
+
+        .brand {
+            background: var(--panel-bg);
+            padding: 14px 18px;
+            border-left: 4px solid var(--hero-accent);
+            border-top: 1px solid var(--panel-border);
+            border-right: 1px solid var(--panel-border);
+            border-bottom: 1px solid var(--panel-border);
+            border-radius: 0 7px 7px 0;
+            box-shadow: var(--panel-shadow);
+        }
+
+        .brand strong {
+            font-size: 24px;
+            letter-spacing: 4px;
+            line-height: 1.1;
+            color: var(--text-primary);
+        }
+
+        .brand .eyebrow {
+            margin-top: 5px;
+            letter-spacing: 1.25px;
+        }
+
+        .top-actions {
+            display: flex;
+            gap: 8px;
+            pointer-events: auto;
+        }
+
+        .btn {
+            cursor: pointer;
+            border: 1px solid var(--btn-border);
+            padding: 10px 13px;
+            border-radius: 6px;
+            color: var(--text-primary);
+            background: var(--btn-surface);
+            transition: background .2s, border-color .2s, color .2s;
+        }
+
+        .btn:hover {
+            background: var(--btn-surface-hover);
+            border-color: var(--btn-border-hover);
+        }
+
+        .btn.active {
+            color: var(--text-primary);
+            background: rgba(74, 124, 130, 0.28);
+            border-color: var(--color-steel-teal);
+            box-shadow: 0 0 0 1px var(--color-steel-teal);
+        }
+
+        .btn:disabled {
+            cursor: wait;
+            opacity: .65;
+        }
+
+        #reset {
+            border-color: rgba(253, 185, 19, 0.65);
+            color: var(--color-bright-sun);
+            font-weight: 600;
+        }
+
+        #reset:hover {
+            background: var(--hero-accent-subtle);
+            border-color: var(--color-bright-sun);
+        }
+
+        #telemetry {
+            position: fixed;
+            top: 113px;
+            left: 24px;
+            z-index: 5;
+            padding: 10px 13px;
+            display: flex;
+            gap: 17px;
+        }
+
+        #telemetry strong {
+            font: 17px ui-monospace, monospace;
+            display: block;
+            color: var(--text-primary);
+        }
+
+        #telemetry span {
+            color: var(--text-muted);
+            font-size: 10px;
+        }
+
+        .sim-tag {
+            color: var(--color-bright-sun) !important;
+        }
+
+        #story {
+            position: fixed;
+            left: 24px;
+            bottom: 25px;
+            z-index: 10;
+            width: 362px;
+            overflow: hidden;
+        }
+
+        .story-content {
+            padding: 19px 21px 16px;
+        }
+
+        #story h1 {
+            margin: 8px 0 8px;
+            font-size: 24px;
+            line-height: 1.15;
+            font-weight: 620;
+            color: var(--text-primary);
+        }
+
+        #zone-copy {
+            color: #C2D1D6;
+            min-height: 59px;
+            margin: 0 0 14px;
+            font-size: 12px;
+        }
+
+        #zone-metric {
+            border-left: 2px solid var(--color-bright-sun);
+            padding: 6px 10px;
+            color: var(--color-bright-sun);
+            background: var(--hero-accent-subtle);
+            font: 12px ui-monospace, monospace;
+        }
+
+        .story-footer {
+            border-top: 1px solid var(--panel-divider);
+            padding: 10px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .story-footer button {
+            background: none;
+            color: var(--text-primary);
+            border: 0;
+            cursor: pointer;
+            padding: 4px 9px;
+            border-radius: 4px;
+            transition: background .15s, color .15s;
+        }
+
+        .story-footer button:hover {
+            background: var(--btn-surface);
+            color: var(--color-bright-sun);
+        }
+
+        #progress-track {
+            height: 3px;
+            background: rgba(74, 124, 130, 0.25);
+        }
+
+        #progress-fill {
+            height: 100%;
+            width: 0;
+            background: var(--color-bright-sun);
+        }
+
+        #operations {
+            position: fixed;
+            right: 24px;
+            bottom: 25px;
+            z-index: 10;
+            width: 322px;
+        }
+
+        .ops-head {
+            display: flex;
+            justify-content: space-between;
+            padding: 13px 15px 8px;
+        }
+
+        #map {
+            width: 100%;
+            height: 156px;
+            display: block;
+        }
+
+        .legend {
+            display: flex;
+            gap: 12px;
+            padding: 0 15px 10px;
+            color: var(--text-muted);
+            font-size: 9px;
+            flex-wrap: wrap;
+        }
+
+        .dot {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            margin-right: 4px;
+        }
+
+        .event-area {
+            padding: 12px 14px;
+            border-top: 1px solid var(--panel-divider);
+        }
+
+        #disrupt {
+            width: 100%;
+            background: var(--color-safety-orange);
+            color: var(--text-inverse);
+            font-weight: 700;
+            border: 0;
+            border-radius: 6px;
+            padding: 11px 8px;
+            cursor: pointer;
+            transition: opacity .2s, transform .1s, background .2s;
+        }
+
+        #disrupt:hover {
+            background: #fa7340;
+        }
+
+        #disrupt:active {
+            transform: scale(0.99);
+        }
+
+        #event-log {
+            margin-top: 10px;
+            min-height: 71px;
+            font: 10px/1.55 ui-monospace, monospace;
+        }
+
+        .log {
+            color: var(--text-muted);
+            margin: 4px 0;
+            border-left: 2px solid var(--color-steel-teal);
+            padding-left: 8px;
+        }
+
+        .log.warn {
+            border-color: var(--color-bright-sun);
+            color: var(--color-bright-sun);
+        }
+
+        .log.fault {
+            border-color: var(--color-safety-orange);
+            color: var(--color-safety-orange);
+        }
+
+        .log.ok {
+            border-color: var(--color-steel-teal);
+            color: var(--text-primary);
+        }
+
+        #prompt {
+            position: fixed;
+            bottom: 27px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 6;
+            font: 10px ui-monospace, monospace;
+            text-align: center;
+            padding: 10px 15px;
+            background: var(--panel-bg);
+            color: var(--text-muted);
+            border: 1px solid var(--panel-border);
+            border-radius: 20px;
+            transition: opacity .8s;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+
+        #selection {
+            position: fixed;
+            right: 24px;
+            top: 83px;
+            width: 300px;
+            padding: 17px;
+            z-index: 12;
+        }
+
+        #selection[hidden] {
+            display: none;
+        }
+
+        #selection h2 {
+            margin: 6px 0 13px;
+            font: 20px ui-monospace, monospace;
+            color: var(--text-primary);
+        }
+
+        #selection-close {
+            float: right;
+            background: transparent;
+            border: 0;
+            color: var(--text-muted);
+            font-size: 21px;
+            cursor: pointer;
+            padding: 0 3px;
+            transition: color .2s;
+        }
+
+        #selection-close:hover {
+            color: var(--text-primary);
+        }
+
+        #selection dl {
+            margin: 0;
+            display: grid;
+            grid-template-columns: 75px 1fr;
+            gap: 7px 12px;
+        }
+
+        #selection dt {
+            color: var(--text-muted);
+            font-size: 11px;
+        }
+
+        #selection dd {
+            margin: 0;
+            font-size: 11px;
+            color: var(--text-primary);
+        }
+
+        #labels {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 3;
+            overflow: hidden;
+        }
+
+        .world-label {
+            position: absolute;
+            left: 0;
+            top: 0;
+            will-change: transform;
+            white-space: nowrap;
+            border-radius: 4px;
+            pointer-events: none;
+        }
+
+        .station-label {
+            background: rgba(28, 43, 51, 0.92);
+            color: var(--text-primary);
+            border: 1px solid var(--panel-border);
+            border-left: 3px solid var(--station-color, var(--color-steel-teal));
+            padding: 4px 8px;
+            font-size: 10px;
+            box-shadow: 0 4px 14px rgba(10, 18, 22, 0.4);
+            transition: border-color .2s, background .2s, box-shadow .2s, transform .2s;
+            backdrop-filter: blur(4px);
+        }
+
+        .station-label b {
+            font-weight: 700;
+            margin-right: 5px;
+            color: var(--station-color, var(--text-muted));
+        }
+
+        .station-label.selected {
+            border-color: var(--station-color, var(--color-bright-sun));
+            border-left-color: var(--station-color, var(--color-bright-sun));
+            background: linear-gradient(90deg, var(--station-tint, rgba(253, 185, 19, 0.28)), rgba(35, 53, 63, 0.96));
+            color: var(--text-primary);
+            box-shadow: 0 0 16px var(--station-tint, rgba(253, 185, 19, 0.35)), 0 6px 18px rgba(10, 18, 22, 0.55);
+        }
+
+        .station-label.selected b {
+            color: var(--station-color, var(--color-bright-sun));
+            filter: drop-shadow(0 0 4px var(--station-color, var(--color-bright-sun)));
+        }
+
+        /* Per-station CSS mappings */
+        .station-label[data-station="coil"]     { --station-color: var(--station-coil);   --station-tint: var(--station-coil-tint);   background: linear-gradient(90deg, var(--station-coil-tint), rgba(28, 43, 51, 0.94)); border-left-color: var(--station-coil); }
+        .station-label[data-station="press"]    { --station-color: var(--station-press);  --station-tint: var(--station-press-tint);  background: linear-gradient(90deg, var(--station-press-tint), rgba(28, 43, 51, 0.94)); border-left-color: var(--station-press); }
+        .station-label[data-station="weld"]     { --station-color: var(--station-biw);    --station-tint: var(--station-biw-tint);    background: linear-gradient(90deg, var(--station-biw-tint), rgba(28, 43, 51, 0.94)); border-left-color: var(--station-biw); }
+        .station-label[data-station="paint"]    { --station-color: var(--station-paint);  --station-tint: var(--station-paint-tint);  background: linear-gradient(90deg, var(--station-paint-tint), rgba(28, 43, 51, 0.94)); border-left-color: var(--station-paint); }
+        .station-label[data-station="hub"]      { --station-color: var(--station-hub);    --station-tint: var(--station-hub-tint);    background: linear-gradient(90deg, var(--station-hub-tint), rgba(28, 43, 51, 0.94)); border-left-color: var(--station-hub); }
+        .station-label[data-station="engine"]   { --station-color: var(--station-engine); --station-tint: var(--station-engine-tint); background: linear-gradient(90deg, var(--station-engine-tint), rgba(28, 43, 51, 0.94)); border-left-color: var(--station-engine); }
+        .station-label[data-station="marriage"] { --station-color: var(--station-marr);   --station-tint: var(--station-marr-tint);   background: linear-gradient(90deg, var(--station-marr-tint), rgba(28, 43, 51, 0.94)); border-left-color: var(--station-marr); }
+        .station-label[data-station="final"]    { --station-color: var(--station-final);  --station-tint: var(--station-final-tint);  background: linear-gradient(90deg, var(--station-final-tint), rgba(28, 43, 51, 0.94)); border-left-color: var(--station-final); }
+        .station-label[data-station="quality"]  { --station-color: var(--station-pdi);    --station-tint: var(--station-pdi-tint);    background: linear-gradient(90deg, var(--station-pdi-tint), rgba(28, 43, 51, 0.94)); border-left-color: var(--station-pdi); }
+        .station-label[data-station="yard"]     { --station-color: var(--station-yard);   --station-tint: var(--station-yard-tint);   background: linear-gradient(90deg, var(--station-yard-tint), rgba(28, 43, 51, 0.94)); border-left-color: var(--station-yard); }
+
+        /* Wireless Inductive Coil Charging Pulse */
+        @keyframes coil-pulse {
+            0%, 100% {
+                box-shadow: 0 0 10px var(--station-tint, rgba(184, 115, 51, 0.35)), 0 4px 14px rgba(10, 18, 22, 0.4);
+                filter: drop-shadow(0 0 2px var(--station-color, #B87333));
+            }
+            50% {
+                box-shadow: 0 0 24px 5px var(--station-color, #B87333), 0 6px 18px rgba(10, 18, 22, 0.6);
+                filter: drop-shadow(0 0 10px var(--station-color, #B87333));
+            }
+        }
+
+        .station-label.coil-active {
+            animation: coil-pulse 1.4s ease-in-out infinite;
+            border-color: var(--station-color, #B87333) !important;
+            border-left-color: var(--station-color, #B87333) !important;
+        }
+
+        .agv-label {
+            background: rgba(28, 43, 51, 0.94);
+            color: var(--text-primary);
+            border: 1px solid var(--panel-border);
+            border-radius: 4px;
+            padding: 3px 6px;
+            font: 9px ui-monospace, monospace;
+            box-shadow: 0 4px 12px rgba(10, 18, 22, 0.35);
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: border-color .2s, box-shadow .2s;
+        }
+
+        .agv-label .batt-ring {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            border: 1.5px solid var(--batt-ring-color, var(--color-steel-teal));
+            box-sizing: border-box;
+            flex-shrink: 0;
+            transition: border-color .2s;
+        }
+
+        .agv-label .status-dot {
+            display: block;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: var(--status-run);
+        }
+
+        #selection-note {
+            position: fixed;
+            top: 184px;
+            left: 24px;
+            color: var(--text-primary);
+            z-index: 5;
+            font: 10px ui-monospace, monospace;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            padding: 5px 9px;
+            border-radius: 4px;
+            max-width: 320px;
+        }
+
+        #selection-note:empty {
+            display: none;
+        }
+
+        #fatal {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            display: none;
+            place-content: center;
+            padding: 30px;
+            background: var(--color-big-stone);
+            color: var(--text-primary);
+            text-align: center;
+        }
+
+        #fatal h2 {
+            color: var(--color-safety-orange);
+        }
+
+        @media (max-width: 950px) {
+            #story {
+                width: 310px
+            }
+
+            #operations {
+                width: 280px
+            }
+
+            #prompt {
+                bottom: 9px
+            }
+
+            .brand strong {
+                font-size: 21px
+            }
+        }
+
+        @media (max-width: 650px) {
+            header {
+                top: 12px;
+                left: 12px;
+                right: 12px
+            }
+
+            .brand {
+                padding: 9px 11px
+            }
+
+            .brand strong {
+                font-size: 18px
+            }
+
+            .brand .eyebrow {
+                font-size: 8px;
+                max-width: 168px
+            }
+
+            .top-actions .btn {
+                padding: 8px 9px;
+                font-size: 11px
+            }
+
+            #telemetry {
+                top: 85px;
+                left: 12px;
+                padding: 7px 10px;
+                gap: 13px
+            }
+
+            #telemetry strong {
+                font-size: 14px
+            }
+
+            #story {
+                left: 12px;
+                right: 12px;
+                width: auto;
+                bottom: 12px
+            }
+
+            .story-content {
+                padding: 12px 15px
+            }
+
+            #story h1 {
+                font-size: 20px;
+                margin: 5px 0
+            }
+
+            #zone-copy {
+                min-height: 0;
+                margin-bottom: 9px;
+                font-size: 11px
+            }
+
+            #zone-metric {
+                font-size: 10px
+            }
+
+            .story-footer {
+                padding: 5px 10px
+            }
+
+            #operations {
+                right: 12px;
+                bottom: 243px;
+                width: 203px
+            }
+
+            #map {
+                height: 102px
+            }
+
+            .ops-head {
+                padding: 8px 10px 3px
+            }
+
+            .ops-head .eyebrow {
+                font-size: 8px
+            }
+
+            .legend {
+                padding: 0 10px 6px;
+                font-size: 8px;
+                gap: 6px
+            }
+
+            .event-area {
+                padding: 8px
+            }
+
+            #disrupt {
+                font-size: 10px;
+                padding: 8px 3px
+            }
+
+            #event-log {
+                min-height: 0;
+                max-height: 74px;
+                overflow: auto;
+                font-size: 8px
+            }
+
+            .log {
+                margin: 3px 0
+            }
+
+            #selection {
+                top: 141px;
+                left: 12px;
+                right: 12px;
+                width: auto
+            }
+
+            #selection-note {
+                top: 147px;
+                left: 12px;
+                max-width: 170px;
+                font-size: 9px
+            }
+
+            #prompt {
+                bottom: auto;
+                top: 144px;
+                left: 12px;
+                transform: none;
+                font-size: 8px
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                scroll-behavior: auto !important
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="world" aria-label="Interactive automotive plant digital twin"></div>
+    <div id="labels" aria-hidden="true"></div>
+    <div id="scroll-space" aria-hidden="true"></div>
+
+    <header>
+        <div class="brand">
+            <strong>CONVOY</strong>
+            <div class="eyebrow">Automotive material flow / Demonstrator</div>
+        </div>
+        <div class="top-actions">
+            <button class="btn" id="orbit" aria-pressed="false">Free explore</button>
+            <button class="btn" id="reset" title="Return to the beginning of the production line">↺ Start</button>
+        </div>
+    </header>
+
+    <div id="telemetry" class="panel">
+        <div><strong id="running-count">6 / 8</strong><span>UNITS RUNNING</span></div>
+        <div><strong>14<span style="font-size:11px"> /h</span></strong><span>MODEL LINE RATE</span></div>
+        <div><strong id="fleet-soc" style="color:var(--color-steel-teal)">78%</strong><span>FLEET AVG SOC</span></div>
+        <div><strong class="sim-tag">4×</strong><span>SIMULATION CLOCK</span></div>
+    </div>
+    <div id="selection-note"></div>
+
+    <section id="story" class="panel" aria-label="Production sequence">
+        <div class="story-content">
+            <div class="eyebrow" id="zone-index">01 / 09 · Inbound material</div>
+            <h1 id="zone-title">Steel Coil Yard</h1>
+            <p id="zone-copy"></p>
+            <div id="zone-metric"></div>
+        </div>
+        <div class="story-footer">
+            <span class="eyebrow" id="camera-mode">Scroll · walk the value stream</span>
+            <div>
+                <button id="prev" aria-label="Previous production zone">←</button>
+                <button id="next" aria-label="Next production zone">→</button>
+            </div>
+        </div>
+        <div id="progress-track">
+            <div id="progress-fill"></div>
+        </div>
+    </section>
+
+    <aside id="operations" class="panel" aria-label="Plant map and dispatch controls">
+        <div class="ops-head">
+            <span class="eyebrow">Plant / live positions</span>
+            <span class="eyebrow">N ↑</span>
+        </div>
+        <canvas id="map" aria-label="Top-down plant network, AGVs and camera"></canvas>
+        <div class="legend">
+            <span><i class="dot" style="background:var(--status-run)"></i>Run</span>
+            <span><i class="dot" style="background:var(--status-wait)"></i>Wait</span>
+            <span><i class="dot" style="background:var(--status-fault)"></i>Fault</span>
+            <span><i class="dot" style="background:var(--status-charge)"></i>Charge</span>
+        </div>
+        <div class="event-area">
+            <button class="btn" id="disrupt">Simulate Line Disruption</button>
+            <div id="event-log" role="log" aria-live="polite" aria-relevant="additions"></div>
+        </div>
+    </aside>
+
+    <aside id="selection" class="panel" aria-label="Selected equipment information" hidden>
+        <button id="selection-close" aria-label="Close equipment information">×</button>
+        <div class="eyebrow" id="selection-kind">Fleet telemetry · simulated</div>
+        <h2 id="selection-title"></h2>
+        <dl id="selection-fields"></dl>
+    </aside>
+
+    <div id="prompt">↓ &nbsp; Scroll to walk the line &nbsp; · &nbsp; Click equipment to inspect</div>
+    <div id="fatal" role="alert"></div>
+
+    <!-- Classic scripts deliberately support opening this HTML with file://. -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script>
+        'use strict';
+
+        /* ==========================================================================
+           1. DATA CONTRACT — plain objects only; no rendering objects in plantGraph/fleet.
+        
+        A representative passenger-vehicle plant, not a surveyed OEM installation.
+           Graph edges are process hand-offs / local material-flow corridors.
+           Coil movements use the overhead crane; AGV-01 carries cut blanks, not coils.
+           Paint transfer uses captive skids, not an open AGV inside the clean booth.
+           All counts, batteries, throughput and disruption outcomes are simulated.
+           ========================================================================== */
+
+        const plantGraph = {
+            metadata: {
+                name: 'CONVOY passenger-vehicle demonstrator',
+                units: 'metres',
+                simulationTimeScale: 4,
+                lineRatePerHour: 14,
+                lineSideBufferSeconds: 90,
+                chargeRateKw: 45
+            },
+            nodes: [
+                {
+                    id: 'coil', code: '01', name: 'Steel Coil Yard', short: 'COIL',
+                    position: [-52, 0, -30], building: [-52, 0, -43], size: [23, 9, 17],
+                    stage: 'Inbound material',
+                    copy: 'Coils remain on saddles under the EOT crane. Cut blank stacks leave the de-stacking point on flat-deck carriers; empty stillages return on the same aisle.',
+                    metric: 'Blank stacks released: 18/h · FIFO rack 03',
+                    status: 'RUNNING',
+                    coilSite: true
+                },
+                {
+                    id: 'press', code: '02', name: 'Press Shop', short: 'PRESS',
+                    position: [-22, 0, -30], building: [-22, 0, -43], size: [25, 12, 17],
+                    stage: 'Blank → stamped panel',
+                    copy: 'A three-press tandem line draws, trims and pierces panels. Dedicated panel stillages protect Class-A surfaces; scrap falls to the below-floor collection system.',
+                    metric: 'Panel stillages ready: 06 · Die set A17',
+                    status: 'RUNNING'
+                },
+                {
+                    id: 'weld', code: '03', name: 'Body-in-White / Weld', short: 'BIW',
+                    position: [12, 0, -30], building: [12, 0, -43], size: [25, 10, 17],
+                    stage: 'Panel → body shell',
+                    copy: 'Side frames meet the underbody in a fenced geometry station. Spot-weld robots work around locating pins; completed shells leave on body skids.',
+                    metric: 'Body shells cleared for paint: 14/h',
+                    status: 'RUNNING'
+                },
+                {
+                    id: 'paint', code: '04', name: 'Paint Shop', short: 'PAINT',
+                    position: [46, 0, -30], building: [46, 0, -43], size: [25, 13, 18],
+                    stage: 'E-coat → primer → top-coat',
+                    copy: 'Enclosed treatment and spray zones have dedicated extraction. Captive skids transfer shells through airlocks; general-purpose AGVs stop at the transfer vestibule.',
+                    metric: 'Booth pressure: +18 Pa · Skid queue: 03',
+                    status: 'RUNNING'
+                },
+                {
+                    id: 'hub', code: '05', name: 'Line-Side Logistics Hub', short: 'HUB',
+                    position: [46, 0, 5], building: [46, 0, -7], size: [22, 8, 17],
+                    stage: 'Sequenced material convergence',
+                    copy: 'Painted bodies, powertrains and VIN-sequenced trim kits converge here. Tugger milk-runs replenish point-of-use racks without sending forklifts into the line.',
+                    metric: 'Marriage buffer: 90 s · Kit completeness: 100%',
+                    status: 'RUNNING',
+                    coilSite: true
+                },
+                {
+                    id: 'engine', code: 'E1', name: 'Engine Sub-Assembly', short: 'ENGINE',
+                    position: [76, 0, 5], building: [76, 0, -7], size: [23, 9, 17],
+                    stage: 'Powertrain feeder',
+                    copy: 'Engine and transmission modules are built on fixtures, torque-verified and presented to a unit-load AGV at the outbound docking station.',
+                    metric: 'Powertrain modules ready: 04 · Torque OK',
+                    status: 'RUNNING'
+                },
+                {
+                    id: 'marriage', code: '06', name: 'Trim & Chassis Marriage', short: 'MARR.',
+                    position: [12, 0, 5], building: [12, 0, -7], size: [25, 12, 17],
+                    stage: 'Body meets running gear',
+                    copy: 'An overhead body carrier lowers the painted shell onto the chassis and powertrain fixture. Lift tables locate the module before controlled tightening.',
+                    metric: 'Marriage station takt: 257 s · Fixture locked',
+                    status: 'RUNNING',
+                    coilSite: true
+                },
+                {
+                    id: 'final', code: '07', name: 'Final Assembly', short: 'FINAL',
+                    position: [-22, 0, 5], building: [-22, 0, -7], size: [25, 10, 17],
+                    stage: 'Trim-out and fitment',
+                    copy: 'Door-off racks, glazing fixtures, seats and wheel sets feed a slat conveyor. Small parts arrive in sequenced carts, keeping the operator envelope clear.',
+                    metric: 'Fitment kits in sequence: 08 · Andon clear',
+                    status: 'RUNNING'
+                },
+                {
+                    id: 'quality', code: '08', name: 'PDI / Quality Gate', short: 'PDI',
+                    position: [-52, 0, 5], building: [-52, 0, -7], size: [23, 10, 17],
+                    stage: 'End-of-line release',
+                    copy: 'Light tunnels reveal paint defects before alignment, brake and diagnostic checks. Released vehicles move under their own power to the dispatch yard.',
+                    metric: 'First-pass yield: 98.6% · Release queue: 02',
+                    status: 'RUNNING'
+                },
+                {
+                    id: 'yard', code: '09', name: 'Vehicle Yard / Dispatch', short: 'YARD',
+                    position: [-52, 0, 40], building: [-40, 0, 53], size: [49, 6, 23],
+                    stage: 'Finished vehicle staging',
+                    copy: 'Released vehicles are parked by dispatch sequence in marked bays. This is finished-vehicle movement, not a claim that AGVs drive every process hand-off.',
+                    metric: 'Dispatch-ready vehicles: 18 · Lane D-04 open',
+                    status: 'IDLE'
+                }
+            ],
+            edges: [
+                {
+                    id: 'blank', from: 'coil', to: 'press', payload: 'Steel blank stack',
+                    points: [[-52, 0, -30], [-22, 0, -30]]
+                },
+                {
+                    id: 'panel', from: 'press', to: 'weld', payload: 'Stamped panel stillage',
+                    points: [[-22, 0, -30], [12, 0, -30]]
+                },
+                {
+                    id: 'shell', from: 'weld', to: 'paint', payload: 'Body-in-white skid',
+                    points: [[12, 0, -30], [46, 0, -30]]
+                },
+                {
+                    id: 'painted', from: 'paint', to: 'hub', payload: 'Painted body transfer',
+                    points: [[46, 0, -30], [61, 0, -30], [61, 0, 5], [46, 0, 5]]
+                },
+                {
+                    id: 'powertrain', from: 'engine', to: 'hub', payload: 'Engine / transmission module',
+                    points: [[76, 0, 5], [46, 0, 5]]
+                },
+                {
+                    id: 'marriage-feed', from: 'hub', to: 'marriage', payload: 'Sequenced trim / chassis kit',
+                    points: [[46, 0, 5], [12, 0, 5]]
+                },
+                {
+                    id: 'final-feed', from: 'marriage', to: 'final', payload: 'Seats / wheel-set carts',
+                    points: [[12, 0, 5], [-22, 0, 5]]
+                },
+                {
+                    id: 'inspection', from: 'final', to: 'quality', payload: 'Inspection fixture return',
+                    points: [[-22, 0, 5], [-52, 0, 5]]
+                },
+                {
+                    id: 'dispatch', from: 'quality', to: 'yard', payload: 'Released vehicle movement',
+                    points: [[-52, 0, 5], [-68, 0, 5], [-68, 0, 40], [-52, 0, 40]]
+                }
+            ],
+            tour: ['coil', 'press', 'weld', 'paint', 'hub', 'marriage', 'final', 'quality', 'yard']
+        };
+
+        const fleet = [
+            {
+                id: 'AGV-01', type: 'flatdeck', route: 'blank', progress: .23, direction: 1,
+                battery: 86, soc: 0.86, battKwh: 12.0, status: 'RUNNING', speed: 1.05, payload: 'Steel blank stack',
+                lastCharge: 'Initial'
+            },
+            {
+                id: 'AGV-02', type: 'tugger', route: null, progress: 0, direction: 1,
+                battery: 95, soc: 0.95, battKwh: 12.0, status: 'IDLE', speed: 1.4, payload: 'Standby sequenced kit',
+                dock: [57, 0, 17], lastCharge: 'Initial'
+            },
+            {
+                id: 'AGV-03', type: 'bodycarrier', route: 'shell', progress: .38, direction: 1,
+                battery: 78, soc: 0.78, battKwh: 12.0, status: 'RUNNING', speed: .95, payload: 'Body-in-white skid',
+                lastCharge: 'Initial'
+            },
+            {
+                id: 'AGV-04', type: 'tugger', route: 'marriage-feed', progress: .18, direction: 1,
+                battery: 62, soc: 0.62, battKwh: 12.0, status: 'RUNNING', speed: 1.1, payload: 'Sequenced trim / chassis kit',
+                lastCharge: 'Initial'
+            },
+            {
+                id: 'AGV-05', type: 'unitload', route: 'powertrain', progress: .52, direction: 1,
+                battery: 82, soc: 0.82, battKwh: 12.0, status: 'RUNNING', speed: 1.0, payload: 'Engine / transmission module',
+                lastCharge: 'Initial'
+            },
+            {
+                id: 'AGV-06', type: 'tugger', route: 'final-feed', progress: .58, direction: 1,
+                battery: 48, soc: 0.48, battKwh: 12.0, status: 'RUNNING', speed: 1.1, payload: 'Seats / wheel-set carts',
+                lastCharge: 'Initial'
+            },
+            {
+                id: 'AGV-07', type: 'flatdeck', route: 'inspection', progress: .21, direction: -1,
+                battery: 71, soc: 0.71, battKwh: 12.0, status: 'RUNNING', speed: 1.05, payload: 'Inspection fixture return',
+                lastCharge: 'Initial'
+            },
+            {
+                id: 'AGV-08', type: 'unitload', route: null, progress: 0, direction: 1,
+                battery: 42, soc: 0.42, battKwh: 12.0, status: 'CHARGING', speed: 1.0, payload: 'Empty powertrain fixture',
+                dock: [65, 0, 17], lastCharge: 'Dedicated @ 01 COIL'
+            }
+        ];
+
+        window.CONVOY = {
+            plantGraph, fleet,
+            getSnapshot() {
+                return JSON.parse(JSON.stringify({ plantGraph, fleet }));
+            }
+        };
+
+        (function boot() {
+            const $ = id => document.getElementById(id);
+            function fail(message) {
+                $('fatal').style.display = 'grid';
+                const h = document.createElement('h2');
+                h.textContent = 'CONVOY could not start';
+                const p = document.createElement('p');
+                p.textContent = message;
+                $('fatal').replaceChildren(h, p);
+            }
+            if (!window.THREE || !THREE.OrbitControls) {
+                fail('The pinned CDN scripts did not load. Check your internet connection and reload this file.');
+                return;
+            }
+
+            try {
+                /* ======================================================================
+                   2. RENDERER / REUSABLE MATERIALS / PROCEDURAL TEXTURES
+                   ====================================================================== */
+                const T = THREE, V = (x = 0, y = 0, z = 0) => new T.Vector3(x, y, z);
+                const scene = new T.Scene();
+                scene.background = new T.Color('#1C2B33');
+                scene.fog = new T.FogExp2('#1C2B33', .0034);
+
+                const renderer = new T.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+                let pixelRatio = Math.min(window.devicePixelRatio || 1, 1.6);
+                renderer.setPixelRatio(pixelRatio);
+                renderer.setSize(innerWidth, innerHeight);
+                renderer.outputEncoding = T.sRGBEncoding;
+                renderer.toneMapping = T.ACESFilmicToneMapping;
+                renderer.toneMappingExposure = 1.06;
+                renderer.shadowMap.enabled = true;
+                renderer.shadowMap.type = T.PCFSoftShadowMap;
+                $('world').appendChild(renderer.domElement);
+
+                const camera = new T.PerspectiveCamera(48, innerWidth / innerHeight, .5, 420);
+                const controls = new T.OrbitControls(camera, renderer.domElement);
+                controls.enabled = false;
+                controls.enableDamping = true;
+                controls.dampingFactor = .075;
+                controls.minDistance = 9;
+                controls.maxDistance = 180;
+                controls.maxPolarAngle = Math.PI * .475;
+                controls.target.set(-52, 2, -43);
+
+                const staticRoot = new T.Group();
+                const dynamicRoot = new T.Group();
+                scene.add(staticRoot, dynamicRoot);
+
+                const materials = new Map();
+                function mat(color, metalness = .15, roughness = .75) {
+                    const key = [color, metalness, roughness].join('/');
+                    if (!materials.has(key)) materials.set(key, new T.MeshStandardMaterial({
+                        color, metalness, roughness
+                    }));
+                    return materials.get(key);
+                }
+                const M = {
+                    steel: mat('#63716e', .65, .52), dark: mat('#303c3a', .45, .67),
+                    pale: mat('#d4d9ce', .25, .6), safety: mat('#d6ab36', .2, .66),
+                    black: mat('#252c29', .05, .93), orange: mat('#bd652e', .3, .58),
+                    blue: mat('#687f89', .4, .58), rubber: mat('#242725', .02, .95),
+                    green: mat('#658376', .3, .65), concrete: mat('#9caaa0', .05, .98),
+                    white: mat('#e5e8d9', .08, .75), red: mat('#a4473c', .3, .6),
+                    wood: mat('#9a8764', .03, .96), window: mat('#667f7b', .5, .3)
+                };
+                function mesh(parent, geo, material, x = 0, y = 0, z = 0, shadow = true) {
+                    const m = new T.Mesh(geo, material);
+                    m.position.set(x, y, z);
+                    m.castShadow = shadow; m.receiveShadow = true;
+                    parent.add(m); return m;
+                }
+                const cube = new T.BoxGeometry(1, 1, 1);
+                const cylinder = new T.CylinderGeometry(1, 1, 1, 12);
+                function box(p, x, y, z, w, h, d, m = M.steel, shadow = true) {
+                    const o = mesh(p, cube, m, x, y, z, shadow); o.scale.set(w, h, d); return o;
+                }
+                function cyl(p, x, y, z, r, h, m = M.steel, shadow = true) {
+                    const o = mesh(p, cylinder, m, x, y, z, shadow); o.scale.set(r, h, r); return o;
+                }
+                function group(parent, x = 0, y = 0, z = 0) {
+                    const g = new T.Group(); g.position.set(x, y, z); parent.add(g); return g;
+                }
+                function beam(p, a, b, width, material = M.steel) {
+                    const av = V(...a), bv = V(...b), delta = bv.clone().sub(av);
+                    const o = box(p, 0, 0, 0, width, delta.length(), width, material);
+                    o.position.copy(av.add(bv).multiplyScalar(.5));
+                    o.quaternion.setFromUnitVectors(V(0, 1, 0), delta.normalize());
+                    return o;
+                }
+                let seed = 4317;
+                function rand() { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296 }
+                function canvasTexture(w, h, draw) {
+                    const c = document.createElement('canvas'); c.width = w; c.height = h;
+                    draw(c.getContext('2d'), w, h);
+                    const tex = new T.CanvasTexture(c); tex.encoding = T.sRGBEncoding;
+                    tex.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
+                    return tex;
+                }
+
+                const concreteTex = canvasTexture(1024, 1024, (c, w, h) => {
+                    c.fillStyle = '#a4aaa2'; c.fillRect(0, 0, w, h);
+                    for (let i = 0; i < 47000; i++) {
+                        const a = .015 + rand() * .055;
+                        c.fillStyle = rand() > .5 ? `rgba(34,48,39,${a})` : `rgba(246,241,216,${a})`;
+                        const s = .5 + rand() * 3; c.fillRect(rand() * w, rand() * h, s, s);
+                    }
+                    for (let i = 0; i < 65; i++) {
+                        const x = rand() * w, y = rand() * h, r = 20 + rand() * 130;
+                        const g = c.createRadialGradient(x, y, 0, x, y, r);
+                        g.addColorStop(0, 'rgba(57,65,51,.045)'); g.addColorStop(1, 'rgba(57,65,51,0)');
+                        c.fillStyle = g; c.fillRect(x - r, y - r, r * 2, r * 2);
+                    }
+                    c.lineWidth = 1;
+                    c.strokeStyle = 'rgba(53,63,51,.2)';
+                    for (let i = 0; i <= 1024; i += 256) {
+                        c.beginPath(); c.moveTo(i, 0); c.lineTo(i, h); c.stroke();
+                        c.beginPath(); c.moveTo(0, i); c.lineTo(w, i); c.stroke();
+                    }
+                    c.strokeStyle = 'rgba(43,48,40,.055)'; c.lineWidth = 4;
+                    for (let i = 0; i < 30; i++) {
+                        const x = rand() * w, y = rand() * h;
+                        c.beginPath(); c.moveTo(x, y); c.bezierCurveTo(x + 20, y + 40, x + 70, y + 50, x + 90, y + 140); c.stroke();
+                    }
+                });
+                concreteTex.wrapS = concreteTex.wrapT = T.RepeatWrapping;
+                concreteTex.repeat.set(8, 6);
+                const floorMat = new T.MeshStandardMaterial({
+                    map: concreteTex, roughnessMap: concreteTex, roughness: 1, metalness: .04, color: '#e0e2d7'
+                });
+                const floor = mesh(staticRoot, new T.PlaneGeometry(205, 155), floorMat, 4, -.035, 1, false);
+                floor.rotation.x = -Math.PI / 2;
+
+                const asphalt = box(staticRoot, -39, -.015, 52, 59, .035, 31, mat('#7e8880', .03, .98), false);
+                const apron = box(staticRoot, -39, .007, 52, 58, .02, 30, mat('#8d968b', .02, .98), false);
+
+                scene.add(new T.HemisphereLight('#e8f5e9', '#687368', .85));
+                scene.add(new T.AmbientLight('#e8f0e1', .35));
+                const overhead = new T.DirectionalLight('#efffed', 1.1);
+                overhead.position.set(-30, 75, 20); overhead.castShadow = true;
+                overhead.shadow.mapSize.set(2048, 2048);
+                Object.assign(overhead.shadow.camera, { left: -105, right: 105, top: 90, bottom: -90, near: 5, far: 180 });
+                overhead.shadow.normalBias = .06;
+                overhead.shadow.bias = -.0003;
+                scene.add(overhead);
+                const fill = new T.DirectionalLight('#dceae8', .55);
+                fill.position.set(65, 45, -45); scene.add(fill);
+                const weldLight = new T.PointLight('#ffd49a', 1.6, 30, 2);
+                weldLight.position.set(12, 6, -43); scene.add(weldLight);
+
+                function sign(p, text, x, y, z, w = 10, h = 1.25, bg = '#263b32', fg = '#edf0dc') {
+                    const tex = canvasTexture(512, 96, (c, cw, ch) => {
+                        c.fillStyle = bg; c.fillRect(0, 0, cw, ch);
+                        c.fillStyle = fg; c.font = 'bold 30px sans-serif';
+                        c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(text, cw / 2, ch / 2, cw - 22);
+                    });
+                    const sm = new T.MeshBasicMaterial({ map: tex, side: T.DoubleSide });
+                    return mesh(p, new T.PlaneGeometry(w, h), sm, x, y, z, false);
+                }
+                const fixtureMat = new T.MeshStandardMaterial({
+                    color: '#e5eddb', emissive: '#dbe9d4', emissiveIntensity: .55, roughness: .55
+                });
+
+                function column(p, x, z, height = 9) {
+                    box(p, x, height / 2, z, .44, height, .5, M.steel);
+                    box(p, x, .65, z, .5, 1.3, .55, M.safety);
+                    box(p, x, .08, z, .9, .16, .95, M.dark);
+                }
+                function bollard(p, x, z) {
+                    cyl(p, x, .7, z, .16, 1.4, M.safety);
+                    cyl(p, x, .95, z, .165, .17, M.black);
+                }
+                function rack(p, x, z, w = 5, h = 4) {
+                    [-w / 2, w / 2].forEach(dx => [0, -2].forEach(dz => box(p, x + dx, h / 2, z + dz, .15, h, .15, M.blue)));
+                    [.25, 1.6, 3].forEach(y => {
+                        box(p, x, y, z - 1, w, .14, 2, M.orange);
+                        for (let k = 0; k < 3; k++) box(p, x - w * .31 + k * w * .31, y + .43, z - 1, w * .25, .7, 1.5, M.pale);
+                    });
+                }
+                function fence(p, x, z, w, h = 2.6) {
+                    box(p, x, h * .5, z, w, h, .035, mat('#747c69', .35, .86), false);
+                    // Thin physical slats, rather than a black sci-fi force field.
+                    for (let i = -w / 2; i <= w / 2; i += .55)
+                        box(p, x + i, h / 2, z + .04, .035, h, .055, M.safety, false);
+                    box(p, x, h, z, w, .09, .12, M.safety);
+                    box(p, x, .15, z, w, .12, .12, M.safety);
+                }
+                function wheel(p, x, y, z, r = .32) {
+                    const w = cyl(p, x, y, z, r, .2, M.rubber); w.rotation.z = Math.PI / 2;
+                    const hub = cyl(p, x + (x < 0 ? -.11 : .11), y, z, r * .5, .025, M.steel);
+                    hub.rotation.z = Math.PI / 2;
+                    return w;
+                }
+
+                // Recognizable car geometry: separate hood, sills, roof, glazing and pillars.
+                function car(p, x, y, z, color = '#82948a', shell = false) {
+                    const g = group(p, x, y, z), body = mat(color, .5, .4);
+                    box(g, 0, .68, 0, 1.95, .4, 4.1, body);
+                    box(g, 0, .98, 1.42, 1.92, .2, 1.2, body);
+                    box(g, 0, .97, -1.57, 1.9, .2, .82, body);
+                    box(g, 0, 1.71, -.12, 1.65, .13, 1.85, body);
+                    [-.83, .83].forEach(xx => {
+                        beam(g, [xx, 1, -1.23], [xx, 1.71, -.99], .095, body);
+                        beam(g, [xx, 1, .94], [xx, 1.71, .79], .095, body);
+                        beam(g, [xx, 1, -.05], [xx, 1.7, -.08], .07, body);
+                    });
+                    if (!shell) {
+                        const wind = box(g, 0, 1.37, .89, 1.58, .68, .045, M.window);
+                        wind.rotation.x = -.23;
+                        const back = box(g, 0, 1.36, -1.12, 1.58, .65, .045, M.window);
+                        back.rotation.x = .34;
+                        [-.87, .87].forEach(xx => box(g, xx, 1.36, -.1, .035, .55, 1.64, M.window));
+                        [-1.02, 1.02].forEach(xx => [-1.3, 1.3].forEach(zz => wheel(g, xx, .52, zz, .37)));
+                        [-.66, .66].forEach(xx => {
+                            box(g, xx, .92, 2.06, .45, .13, .035, M.white);
+                            box(g, xx, .9, -2.06, .42, .15, .035, M.red);
+                        });
+                    } else {
+                        box(g, 0, .98, 0, 1.6, .06, 1.85, M.dark);
+                    }
+                    return g;
+                }
+                function engine(p, x, y, z, scale = 1) {
+                    const g = group(p, x, y, z); g.scale.setScalar(scale);
+                    box(g, 0, .45, 0, 1.1, .9, 1.5, M.steel);
+                    box(g, 0, .98, 0, .94, .22, 1.38, M.dark);
+                    box(g, .68, .4, -.3, .52, .58, .95, M.pale);
+                    for (let i = 0; i < 4; i++) {
+                        const pipe = cyl(g, -.58, .6, -.5 + i * .32, .095, .6, M.dark);
+                        pipe.rotation.z = .6;
+                    }
+                    cyl(g, 0, 1.15, -.38, .12, .12, M.safety);
+                    return g;
+                }
+
+                /* ======================================================================
+                       3. INDUSTRIAL ARCHITECTURE — distinct station-specific builders
+                       ====================================================================== */
+                const nodes = new Map(plantGraph.nodes.map(n => [n.id, n]));
+                const edges = new Map(plantGraph.edges.map(e => [e.id, e]));
+                const stationLights = new Map(), stationViews = new Map();
+                const pickables = [], robotPivots = [], pressHeads = [];
+                const STATUS = {
+                    RUNNING: '#4A7C82', IDLE: '#FDB913', CHARGING: '#8FA4AD', FAULT: '#F4622C'
+                };
+
+                const STATION_COLORS = {
+                    coil: '#B87333',
+                    press: '#4A7C9E',
+                    weld: '#6B5B95',
+                    paint: '#FDB913',
+                    hub: '#C1502E',
+                    engine: '#3E4C8A',
+                    marriage: '#5B7B4F',
+                    final: '#F4622C',
+                    quality: '#3E8E8A',
+                    yard: '#7A8480'
+                };
+
+                function stackLight(p, x, y, z, scale = 1) {
+                    const g = group(p, x, y, z); g.scale.setScalar(scale);
+                    cyl(g, 0, .33, 0, .065, .65, M.dark);
+                    const lamps = {};
+                    ['RUNNING', 'IDLE', 'FAULT'].forEach((state, i) => {
+                        const material = new T.MeshStandardMaterial({
+                            color: STATUS[state], emissive: STATUS[state], emissiveIntensity: .025, roughness: .38
+                        });
+                        lamps[state] = cyl(g, 0, .72 + i * .24, 0, .15, .19, material, false);
+                        cyl(g, 0, .83 + i * .24, 0, .16, .03, M.dark, false);
+                    });
+                    const chargeMat = new T.MeshStandardMaterial({
+                        color: '#8FA4AD', emissive: '#8FA4AD', emissiveIntensity: .025
+                    });
+                    lamps.CHARGING = cyl(g, 0, 1.44, 0, .13, .13, chargeMat, false);
+                    return { g, lamps, state: null };
+                }
+                function setStack(light, state) {
+                    if (light.state === state) return;
+                    light.state = state;
+                    for (const [key, m] of Object.entries(light.lamps)) {
+                        m.material.emissiveIntensity = key === state ? 1.15 : .025;
+                        m.material.color.set(key === state ? STATUS[key] : '#4e5750');
+                    }
+                }
+
+                function baseStation(n) {
+                    const g = group(staticRoot, ...n.building);
+                    const color = STATION_COLORS[n.id] || '#7A8480';
+                    const borderMat = mat(color, .3, .55);
+                    const padTintMat = mat(color, .12, .88);
+
+                    // Concrete structural base slab
+                    box(g, 0, .035, 0, n.size[0], .07, n.size[2], M.concrete, false);
+
+                    // Station colored floor-zone shading pad
+                    box(g, 0, .071, 0, n.size[0] - .35, .004, n.size[2] - .35, padTintMat, false);
+
+                    // Station perimeter boundary stripes
+                    for (const x of [-n.size[0] / 2, n.size[0] / 2])
+                        box(g, x, .085, 0, .18, .026, n.size[2], borderMat, false);
+                    box(g, 0, .085, n.size[2] / 2, n.size[0], .026, .18, borderMat, false);
+                    box(g, 0, .085, -n.size[2] / 2, n.size[0], .026, .18, borderMat, false);
+
+                    // Station zone corner brackets
+                    const cw = Math.min(2.4, n.size[0] * 0.18), cd = Math.min(2.4, n.size[2] * 0.18);
+                    for (const sx of [-1, 1]) {
+                        for (const sz of [-1, 1]) {
+                            box(g, (n.size[0] / 2 - cw / 2) * sx, .088, (n.size[2] / 2 - 0.12) * sz, cw, .028, .24, borderMat, false);
+                            box(g, (n.size[0] / 2 - 0.12) * sx, .088, (n.size[2] / 2 - cd / 2) * sz, .24, .028, cd, borderMat, false);
+                        }
+                    }
+
+                    // Overhead sign with station colored border and accent
+                    sign(g, n.code + '  ' + n.short, 0, 5.9, 8.45, Math.min(10, n.size[0] - 2), 1.15, '#1C2B33', color);
+                    const proxy = mesh(dynamicRoot, new T.BoxGeometry(...n.size),
+                        new T.MeshBasicMaterial({ visible: false }),
+                        n.building[0], n.size[1] / 2, n.building[2], false);
+                    proxy.userData = { kind: 'station', id: n.id }; pickables.push(proxy);
+                    const light = stackLight(dynamicRoot, n.building[0] + n.size[0] / 2 - 1.3, 4, n.building[2] + 7.4, 1.25);
+                    setStack(light, n.status); stationLights.set(n.id, light);
+                    stationViews.set(n.id, { g, proxy });
+                    return g;
+                }
+
+                const builders = {
+                    coil(g) {
+                        for (let i = 0; i < 3; i++) for (let j = 0; j < 2; j++) {
+                            const x = -7 + i * 6, z = -4 + j * 5;
+                            box(g, x, .3, z, 3.8, .6, 3, M.wood);
+                            const coil = mesh(g, new T.TorusGeometry(1.3, .43, 10, 24), M.steel, x, 1.83, z);
+                            // Coils are stored with the eye along the aisle.
+                            [-.23, .23].forEach(dz => {
+                                const ring = mesh(g, new T.TorusGeometry(1.32, .045, 5, 24), M.dark, x, 1.83, z + dz);
+                            });
+                        }
+                        [-10, 10].forEach(x => [-6, 6].forEach(z => column(g, x, z, 9)));
+                        box(g, 0, 9, -5, 21, .5, .8, M.safety);
+                        box(g, 0, 9, 5, 21, .5, .8, M.safety);
+                        box(g, -1, 9.6, 0, 1, .6, 11, M.orange);
+                        box(g, -1, 8.95, 0, 1.5, .8, 1.6, M.dark);
+                        beam(g, [-1, 8.6, 0], [-1, 4.4, 0], .06, M.dark);
+                        const hook = mesh(g, new T.TorusGeometry(.28, .075, 6, 12, Math.PI * 1.5), M.dark, -1, 4.2, 0);
+                        box(g, 7, .5, 6, 4, 1, 2.4, M.dark);
+                        for (let i = 0; i < 7; i++)box(g, 7, 1.05 + i * .07, 6, 3.8, .04, 2.1, M.steel);
+                        sign(g, 'COIL HANDLING — CRANE ONLY', 0, 2.9, 8.5, 11, .7);
+                    },
+                    press(g, n) {
+                        [-7.6, 0, 7.6].forEach((x, i) => {
+                            box(g, x, .6, 0, 6.1, 1.2, 6.8, M.dark);
+                            [-2.5, 2.5].forEach(dx => box(g, x + dx, 5.4, 0, .85, 9.2, 5.5, M.green));
+                            box(g, x, 9.3, 0, 6, 2.0, 5.8, M.green);
+                            box(g, x, 2.1, 0, 4.8, .6, 4.9, M.steel);
+                            const ram = group(dynamicRoot, n.building[0] + x, 5.2, n.building[2]);
+                            box(ram, 0, 0, 0, 4.4, 1.2, 4.6, M.blue);
+                            pressHeads.push({ g: ram, base: 5.2, phase: i * 1.6 });
+                            cyl(g, x, 10.55, 0, .6, .8, M.dark);
+                            box(g, x + 2.95, 2.8, 3.05, .6, 1.3, .45, M.pale);
+                            sign(g, ['DRAW', 'TRIM', 'PIERCE'][i], x, 8.7, 2.94, 3, .6);
+                        });
+                        box(g, 0, .2, 5.5, 22, .4, 1.7, M.dark);
+                        for (let i = -10; i < 11; i += 1.1) {
+                            const roller = cyl(g, i, .49, 5.5, .13, 1.5, M.steel);
+                            roller.rotation.x = Math.PI / 2;
+                        }
+                        [-11, 11].forEach(x => bollard(g, x, 7));
+                    },
+                    weld(g, n) {
+                        box(g, 0, .35, 0, 8, .7, 6, M.dark);
+                        car(g, 0, .72, 0, '#aab4ae', true);
+                        for (let i = 0; i < 4; i++) {
+                            const sx = i < 2 ? -5 : 5, sz = i % 2 ? -3.3 : 3.3;
+                            const root = group(dynamicRoot, n.building[0] + sx, 0, n.building[2] + sz);
+                            cyl(root, 0, .5, 0, .65, 1, M.dark);
+                            const pivot = group(root, 0, 1, 0);
+                            pivot.rotation.y = sx < 0 ? -.9 : .9;
+                            cyl(pivot, 0, .1, 0, .4, .5, M.orange);
+                            beam(pivot, [0, .2, 0], [0, 2.5, .7], .55, M.orange);
+                            cyl(pivot, 0, 2.5, .7, .38, .65, M.dark).rotation.z = Math.PI / 2;
+                            beam(pivot, [0, 2.5, .7], [0, 2.05, 2.6], .4, M.orange);
+                            beam(pivot, [0, 2.05, 2.6], [0, 1.35, 3.1], .22, M.dark);
+                            robotPivots.push({ g: pivot, base: pivot.rotation.y, phase: i * 1.8 });
+                        }
+                        fence(g, 0, -7, 23);
+                        [-11, 11].forEach(x => {
+                            for (let z = -6; z <= 5; z += 2)box(g, x, 1.3, z, .08, 2.6, .08, M.safety);
+                            box(g, x, 2.6, -.5, .12, .1, 13, M.safety);
+                        });
+                        box(g, 8, 1.5, 5, 2.1, 3, 1.2, M.pale);
+                        sign(g, 'GEO CELL 12 · INTERLOCKED', 0, 4.8, 7.6, 10, .8);
+                    },
+                    paint(g) {
+                        // Sealed booth, stepped rooftop AHUs, ducts and small inspection windows.
+                        box(g, 0, 4.7, -.5, 23, 9.4, 14, M.pale);
+                        box(g, 0, 9.45, -.5, 23.5, .25, 14.5, M.white);
+                        [-7.5, 0, 7.5].forEach((x, i) => {
+                            box(g, x, 3.6, 6.56, 6.8, 5.9, .2, mat(['#b1beb2', '#c3c9b8', '#cdd2c1'][i], .2, .6));
+                            box(g, x, 4.6, 6.7, 3.7, 1.05, .075, M.window);
+                            box(g, x, 10.4, -1, 4.6, 1.7, 4.5, M.steel);
+                            const duct = cyl(g, x, 10.1, -4.7, .68, 5, M.pale);
+                            duct.rotation.z = Math.PI / 2;
+                            cyl(g, x + 2.2, 11.15, -4.7, .68, 2.2, M.pale);
+                            box(g, x + 2.2, 12.25, -4.7, 1.8, .22, 1.8, M.steel);
+                            sign(g, ['E-COAT', 'PRIMER', 'TOP-COAT'][i], x, 7.7, 6.72, 5, .8);
+                        });
+                        box(g, 0, 2.0, 8, 5.8, 4, 3, M.pale);
+                        box(g, 0, 1.9, 9.55, 3.7, 3.3, .045, M.dark);
+                        for (let x = -1.7; x < 1.9; x += .24)box(g, x, 1.9, 9.61, .09, 3.2, .04, M.window);
+                        sign(g, 'TRANSFER AIRLOCK · NO GENERAL AGVs', 0, 5.8, 8.8, 13, .7);
+                        [-10, 10].forEach(x => bollard(g, x, 8));
+                    },
+                    hub(g) {
+                        rack(g, -6, -3, 6, 4.8); rack(g, 5, -3, 6, 4.8);
+                        for (let i = 0; i < 3; i++) {
+                            box(g, -6 + i * 6, .1, 4, 4.8, .08, 4.3, mat('#8b9980', .05, .95), false);
+                            box(g, -6 + i * 6, 1, 4, 3, .25, 2, M.blue);
+                            for (let j = 0; j < 3; j++)box(g, -6 + i * 6, 1.45 + j * .45, 4, 2.6, .35, 1.7, M.pale);
+                        }
+                        [-10, 10].forEach(x => column(g, x, -5, 7));
+                        box(g, 0, 7, -5, 20, .4, .5, M.steel);
+                        box(g, 0, 5.4, -4.9, 7, 2.1, .35, M.dark);
+                        sign(g, 'VIN SEQUENCE  •  BUFFER 90 s', 0, 5.4, -4.65, 6.5, .8);
+                        box(g, 9, 1.1, 6, 1.3, 2.2, .9, M.blue);
+                        sign(g, 'KIT 01     KIT 02     KIT 03', 0, 2.6, 6.8, 14, .8);
+                    },
+                    engine(g) {
+                        [-6, 0, 6].forEach((x, i) => {
+                            box(g, x, 1.1, 0, 4.5, .35, 5, M.steel);
+                            [-1.7, 1.7].forEach(dx => [-1.8, 1.8].forEach(dz => box(g, x + dx, .5, dz, .2, 1, .2, M.dark)));
+                            engine(g, x, 1.28, 0, 1.6);
+                            column(g, x - 2.2, -3, 6);
+                            box(g, x, 6, -3, 4.5, .25, .35, M.steel);
+                            beam(g, [x, 5.9, -3], [x, 3.1, -2], .035, M.black);
+                            box(g, x, 3, -2, .22, .75, .25, M.safety);
+                            sign(g, ['BUILD', 'TORQUE', 'RELEASE'][i], x, 4.5, 2.6, 4, .6);
+                        });
+                        rack(g, 8, -5, 4);
+                    },
+                    marriage(g) {
+                        [-8, 8].forEach(x => [-4, 4].forEach(z => column(g, x, z, 10)));
+                        [-3, 3].forEach(z => box(g, 0, 9.8, z, 24, .5, .38, M.steel));
+                        box(g, 0, 8.9, 0, 5, .35, 7, M.orange);
+                        [-2.2, 2.2].forEach(x => beam(g, [x, 8.8, 0], [x, 4.5, 0], .15, M.dark));
+                        car(g, 0, 3.25, 0, '#8b9e9a');
+                        box(g, 0, .35, 0, 5, .7, 7, M.blue);
+                        [-1.5, 1.5].forEach(x => {
+                            beam(g, [x, .65, -2], [x, 2.5, 2], .2, M.steel);
+                            beam(g, [x, .65, 2], [x, 2.5, -2], .2, M.steel);
+                        });
+                        box(g, 0, 2.65, 0, 3.5, .25, 5.3, M.dark);
+                        engine(g, 0, 2.78, 1.25, 1);
+                        [-1.1, 1.1].forEach(x => [-1.6, 1.6].forEach(z => wheel(g, x, 2.95, z, .4)));
+                        sign(g, 'BODY ↓   +   POWERTRAIN ↑', 0, 7.4, 4.15, 12, .85);
+                    },
+                    final(g) {
+                        box(g, 0, .18, 0, 22, .36, 6.3, M.dark);
+                        for (let x = -10.5; x <= 10.5; x += .55)box(g, x, .38, 0, .34, .045, 5.7, M.steel, false);
+                        [-6.5, 0, 6.5].forEach((x, i) => car(g, x, .4, 0, ['#c7cbc0', '#8caaa4', '#a5b4bc'][i]));
+                        for (let i = 0; i < 4; i++) {
+                            const x = -9 + i * 6;
+                            box(g, x, 1.2, -6, 3, .2, 2.6, M.blue);
+                            [-.8, .8].forEach(dx => {
+                                box(g, x + dx, 1.7, -6, .8, 1, .65, M.dark);
+                                box(g, x + dx, 1.6, -5.6, .8, .2, .85, M.dark);
+                            });
+                        }
+                        [-11, 11].forEach(x => column(g, x, 4, 7.5));
+                        box(g, 0, 7.5, 4, 22, .3, .4, M.steel);
+                        for (let x = -9; x <= 9; x += 6)box(g, x, 7.2, 3.8, 4, .1, .5, fixtureMat, false);
+                        sign(g, 'DOORS OFF · SEATS · GLASS · WHEELS', 0, 5.9, 4.3, 15, .8);
+                    },
+                    quality(g) {
+                        box(g, 0, .12, 0, 20, .24, 12, M.pale);
+                        [-7, -3.5, 0, 3.5, 7].forEach(x => {
+                            [-5, 5].forEach(z => {
+                                box(g, x, 3.5, z, .25, 7, .35, M.steel);
+                                box(g, x, 3.5, z - (z > 0 ? .2 : -.2), .12, 5.7, .12, fixtureMat, false);
+                            });
+                            box(g, x, 7, 0, .3, .3, 10, M.steel);
+                            box(g, x, 6.75, 0, .14, .12, 8.5, fixtureMat, false);
+                        });
+                        car(g, -3, .15, 0, '#e1e1d2'); car(g, 4, .15, 0, '#809ba2');
+                        [-3, 4].forEach(x => {
+                            box(g, x, .27, 1.3, 2.7, .13, .8, M.dark);
+                            box(g, x, .27, -1.3, 2.7, .13, .8, M.dark);
+                        });
+                        box(g, 9, 1.4, 5, 1.2, 2.8, .9, M.blue);
+                        sign(g, 'LIGHT TUNNEL · BRAKE / DIAGNOSTICS', 0, 7.6, 5.1, 17, .9);
+                    },
+                    yard(g) {
+                        const colors = ['#d7dbd2', '#82968f', '#768994', '#b5b6ac', '#bdc3b9', '#9daeb3'];
+                        for (let row = 0; row < 2; row++) for (let i = 0; i < 9; i++) {
+                            const x = -21 + i * 5.3, z = -4 + row * 10;
+                            car(g, x, .07, z, colors[(i + row) % colors.length]);
+                            box(g, x - 2.4, .035, z, .09, .035, 7, M.white, false);
+                            box(g, x, .035, z - 3.5, 4.8, .035, .09, M.white, false);
+                        }
+                        [-24, 24].forEach(x => {
+                            column(g, x, 0, 10);
+                            box(g, x, 10, 0, 2, .13, 1.4, fixtureMat, false);
+                        });
+                        box(g, 26, 1.9, 5, 4, 3.8, 4, M.pale);
+                        box(g, 26, 2.3, 7.03, 2.6, 1.2, .05, M.window);
+                        beam(g, [23, .8, -6], [23, 3.3, -6], .22, M.red);
+                        box(g, 17, 3.3, -6, 12, .15, .15, M.white);
+                        sign(g, 'DISPATCH  D-04', 0, 4.5, -8, 12, 1, '#e0e3d4', '#33453b');
+                    }
+                };
+                for (const n of plantGraph.nodes) builders[n.id](baseStation(n), n);
+
+                // Suggest the roof structure without hiding the process equipment.
+                for (let z of [-59, -21, 24]) {
+                    for (let x of [-80, -40, 0, 40, 88]) column(staticRoot, x, z, 16);
+                    box(staticRoot, 4, 16, z, 170, .5, .55, M.steel);
+                    for (let x = -70; x < 86; x += 16) {
+                        beam(staticRoot, [x, 16, z], [x + 8, 14.6, z], .12, M.steel);
+                        beam(staticRoot, [x + 8, 14.6, z], [x + 16, 16, z], .12, M.steel);
+                        box(staticRoot, x + 6, 15.35, z, 6, .1, .6, fixtureMat, false);
+                    }
+                }
+                // Overhead body conveyor between paint and the logistics drop.
+                [64, 68].forEach(x => {
+                    box(staticRoot, x, 12, -17, .3, .45, 36, M.steel);
+                    [-31, -3].forEach(z => column(staticRoot, x, z, 12));
+                });
+                [-25, -13, -1].forEach(z => {
+                    box(staticRoot, 66, 11.55, z, 4.8, .18, .5, M.orange);
+                    beam(staticRoot, [64.5, 11.5, z], [64.5, 8.6, z], .09, M.steel);
+                    beam(staticRoot, [67.5, 11.5, z], [67.5, 8.6, z], .09, M.steel);
+                });
+
+                // Pedestrian green walkway, zebra crossings, lane stop lines.
+                const walkMat = mat('#758d78', .03, .97);
+                box(staticRoot, 0, .005, 12, 176, .025, 2.1, walkMat, false);
+                [-1, 1].forEach(s => box(staticRoot, 0, .025, 12 + s * 1.1, 176, .015, .09, M.white, false));
+                for (const x of [-68, 46, 61]) {
+                    for (let i = 0; i < 7; i++)box(staticRoot, x, .065, 9.2 + i * .83, 4.6, .02, .36, M.white, false);
+                    box(staticRoot, x, .07, 8.3, 4.6, .02, .24, M.white, false);
+                }
+                // Dock / charge pockets are deliberately off the live main aisle.
+                [57, 65].forEach((x, i) => {
+                    box(staticRoot, x, .025, 17, 5, .03, 5, mat('#89998b', .05, .9), false);
+                    [-2.5, 2.5].forEach(dx => box(staticRoot, x + dx, .06, 17, .12, .015, 5, M.white, false));
+                    box(staticRoot, x, 1.1, 20, 1.7, 2.2, .65, i ? M.blue : M.green);
+                    sign(staticRoot, i ? 'CHARGE 02' : 'STANDBY 01', x, 2.8, 20.4, 4, .6);
+                    bollard(staticRoot, x - 1.7, 19.7); bollard(staticRoot, x + 1.7, 19.7);
+                });
+
+                /* ======================================================================
+                       4. ROUTE GEOMETRY — rounded polylines, actual painted lane ribbons.
+                       ====================================================================== */
+                function makeCurve(arr, radius = 2.8) {
+                    const pts = arr.map(p => V(...p)), path = new T.CurvePath();
+                    let last = pts[0].clone();
+                    for (let i = 1; i < pts.length - 1; i++) {
+                        const a = pts[i - 1], b = pts[i], c = pts[i + 1];
+                        const r = Math.min(radius, b.distanceTo(a) * .3, b.distanceTo(c) * .3);
+                        const pre = b.clone().add(a.clone().sub(b).normalize().multiplyScalar(r));
+                        const post = b.clone().add(c.clone().sub(b).normalize().multiplyScalar(r));
+                        path.add(new T.LineCurve3(last, pre));
+                        path.add(new T.QuadraticBezierCurve3(pre, b, post));
+                        last = post;
+                    }
+                    path.add(new T.LineCurve3(last, pts[pts.length - 1]));
+                    path.arcLengthDivisions = 300; path.updateArcLengths();
+                    return path;
+                }
+                const routeViews = new Map();
+                function ribbon(curve, offset, width, y, filter) {
+                    const length = curve.getLength(), count = Math.ceil(length / .55), pos = [], normal = [];
+                    const up = V(0, 1, 0);
+                    for (let i = 0; i < count; i++) {
+                        const t0 = i / count, t1 = (i + 1) / count;
+                        if (filter && !filter((t0 + t1) * .5 * length)) continue;
+                        const p0 = curve.getPointAt(t0), p1 = curve.getPointAt(t1);
+                        const side0 = curve.getTangentAt(t0).cross(up).normalize();
+                        const side1 = curve.getTangentAt(t1).cross(up).normalize();
+                        const a = p0.clone().addScaledVector(side0, offset - width / 2); a.y = y;
+                        const b = p0.clone().addScaledVector(side0, offset + width / 2); b.y = y;
+                        const c = p1.clone().addScaledVector(side1, offset - width / 2); c.y = y;
+                        const d = p1.clone().addScaledVector(side1, offset + width / 2); d.y = y;
+                        [a, c, b, b, c, d].forEach(v => { pos.push(v.x, v.y, v.z); normal.push(0, 1, 0) });
+                    }
+                    const geom = new T.BufferGeometry();
+                    geom.setAttribute('position', new T.Float32BufferAttribute(pos, 3));
+                    geom.setAttribute('normal', new T.Float32BufferAttribute(normal, 3));
+                    geom.computeBoundingSphere(); return geom;
+                }
+                const markingYellow = new T.MeshBasicMaterial({ color: '#bc963a', side: T.DoubleSide });
+                const markingBlack = new T.MeshBasicMaterial({ color: '#3f463d', side: T.DoubleSide });
+                const reflective = new T.MeshStandardMaterial({
+                    color: '#d8dbce', roughness: .3, metalness: .4, side: T.DoubleSide
+                });
+                for (const e of plantGraph.edges) {
+                    const curve = makeCurve(e.points);
+                    for (const offset of [-1.9, 1.9]) {
+                        mesh(staticRoot, ribbon(curve, offset, .24, .055), markingYellow, 0, 0, 0, false);
+                        mesh(staticRoot, ribbon(curve, offset, .255, .058, s => s % 2.8 < 1.2), markingBlack, 0, 0, 0, false);
+                    }
+                    mesh(staticRoot, ribbon(curve, 0, .075, .065), reflective, 0, 0, 0, false);
+                    const material = new T.MeshBasicMaterial({
+                        color: '#d5af42', transparent: true, opacity: .6, side: T.DoubleSide, depthWrite: false
+                    });
+                    const highlight = mesh(dynamicRoot, ribbon(curve, 0, .42, .078, s => s % 2.5 < 1.55), material, 0, 0, 0, false);
+                    highlight.visible = false;
+                    routeViews.set(e.id, { curve, length: curve.getLength(), highlight });
+                }
+
+                // Static batching reduces hundreds of industrial parts to material batches.
+                // Picking uses dedicated station/vehicle proxies, not the merged meshes.
+                function batchStatic(root) {
+                    root.updateMatrixWorld(true);
+                    const buckets = new Map();
+                    root.traverse(o => {
+                        if (!o.isMesh || Array.isArray(o.material)) return;
+                        const key = o.material.uuid + '/' + o.castShadow;
+                        if (!buckets.has(key)) buckets.set(key, { mat: o.material, shadow: o.castShadow, geos: [] });
+                        const geo = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
+                        geo.applyMatrix4(o.matrixWorld);
+                        buckets.get(key).geos.push(geo);
+                    });
+                    const batched = new T.Group();
+                    for (const bucket of buckets.values()) {
+                        const attributes = {};
+                        for (const name of ['position', 'normal', 'uv']) {
+                            const size = name === 'uv' ? 2 : 3;
+                            const count = bucket.geos.reduce((sum, g) => sum + g.attributes.position.count, 0);
+                            const out = new Float32Array(count * size);
+                            let offset = 0;
+                            for (const g of bucket.geos) {
+                                const a = g.attributes[name];
+                                if (a) out.set(a.array, offset);
+                                offset += g.attributes.position.count * size;
+                            }
+                            attributes[name] = new T.BufferAttribute(out, size);
+                        }
+                        const geo = new T.BufferGeometry();
+                        Object.entries(attributes).forEach(([k, a]) => geo.setAttribute(k, a));
+                        geo.computeBoundingSphere();
+                        const m = new T.Mesh(geo, bucket.mat); m.castShadow = bucket.shadow; m.receiveShadow = true;
+                        batched.add(m);
+                        bucket.geos.forEach(g => g.dispose());
+                    }
+                    scene.remove(root); scene.add(batched);
+                    // Originals share several primitive geometries; release each only once.
+                    const originals = new Set();
+                    root.traverse(o => { if (o.isMesh) originals.add(o.geometry) });
+                    originals.forEach(g => {
+                        // Shared primitive geometry is also used by dynamic equipment.
+                        if (g !== cube && g !== cylinder) g.dispose();
+                    });
+                    root.clear();
+                }
+                batchStatic(staticRoot);
+
+                /* ======================================================================
+                       5. ATMOSPHERE / ROBOT SPARKS — no texture or image assets.
+                       ====================================================================== */
+                const dustPositions = [];
+                for (let i = 0; i < 240; i++) {
+                    dustPositions.push(-37 + rand() * 66, 2 + rand() * 12, -54 + rand() * 22);
+                }
+                const dustGeo = new T.BufferGeometry();
+                dustGeo.setAttribute('position', new T.Float32BufferAttribute(dustPositions, 3));
+                const dust = new T.Points(dustGeo, new T.PointsMaterial({
+                    color: '#dce0c8', size: .09, transparent: true, opacity: .3, depthWrite: false
+                }));
+                scene.add(dust);
+
+                const sparkArray = new Float32Array(30 * 3);
+                const sparkGeo = new T.BufferGeometry();
+                sparkGeo.setAttribute('position', new T.BufferAttribute(sparkArray, 3));
+                const sparks = new T.Points(sparkGeo, new T.PointsMaterial({
+                    color: '#ffd29a', size: .12, transparent: true, opacity: .9, depthWrite: false
+                }));
+                sparks.position.set(12, 2.2, -43); scene.add(sparks);
+                const sparkSeeds = Array.from({ length: 30 }, () => ({ a: rand() * Math.PI * 2, r: rand(), s: rand() }));
+
+                /* ======================================================================
+                       6. AGV RENDER VIEWS — low-profile chassis, safety scanner, physical
+                          stack lights, route-specific payloads, and articulated tugger carts.
+                       ====================================================================== */
+                const fleetViews = new Map(), motion = new Map();
+                function makePayload(parent, type) {
+                    const g = group(parent);
+                    if (type === 'flatdeck') {
+                        box(g, 0, .92, 0, 1.5, .16, 2.05, M.wood);
+                        for (let i = 0; i < 6; i++)box(g, 0, 1.04 + i * .065, 0, 1.4, .035, 1.85, M.steel);
+                        [-.48, .48].forEach(x => box(g, x, 1.23, 0, .035, .45, 1.9, M.dark));
+                    } else if (type === 'unitload') {
+                        box(g, 0, .94, 0, 1.5, .18, 1.85, M.blue);
+                        engine(g, 0, 1.05, 0, .78);
+                    } else if (type === 'bodycarrier') {
+                        box(g, 0, .92, 0, 2.2, .18, 4.7, M.steel);
+                        car(g, 0, 1.03, 0, '#bac4bc', true);
+                    }
+                    return g;
+                }
+                function makeAGV(f) {
+                    const root = group(dynamicRoot), wheels = [];
+                    const long = f.type === 'bodycarrier' ? 3.2 : 2.25;
+                    box(root, 0, .44, 0, 1.65, .52, long, M.safety);
+                    box(root, 0, .75, 0, 1.56, .15, long * .94, M.dark);
+                    box(root, 0, .24, long / 2 + .05, 1.4, .18, .15, M.black);
+                    box(root, 0, .31, long / 2 + .14, .44, .12, .11, M.red); // safety lidar housing
+                    [-.83, .83].forEach(x => [-long * .32, long * .32].forEach(z => wheels.push(wheel(root, x, .29, z, .25))));
+                    const tower = stackLight(root, -.53, .8, long * .25, .8);
+                    sign(root, f.id, 0, .49, long / 2 + .085, 1.17, .3, '#e2debb', '#283629');
+                    const payload = makePayload(root, f.type);
+                    const trailer = f.type === 'tugger' ? group(dynamicRoot) : null;
+                    let trailerLoad = null;
+                    if (trailer) {
+                        box(trailer, 0, .48, 0, 1.72, .14, 2.25, M.blue);
+                        beam(trailer, [0, .35, 1.1], [0, .35, 2.05], .085, M.steel);
+                        [-.89, .89].forEach(x => [-.8, .8].forEach(z => wheel(trailer, x, .25, z, .22)));
+                        [-.77, .77].forEach(x => [-1, 1].forEach(z => box(trailer, x, 1.05, z, .055, 1.1, .055, M.steel)));
+                        trailerLoad = group(trailer);
+                        if (f.id === 'AGV-06') {
+                            for (const x of [-.4, .4]) {
+                                box(trailerLoad, x, .91, 0, .66, .65, .65, M.dark);
+                                box(trailerLoad, x, 1.34, -.2, .66, .8, .2, M.dark);
+                            }
+                            wheel(trailerLoad, .1, .9, .78, .35);
+                        } else {
+                            for (let i = 0; i < 3; i++)box(trailerLoad, 0, .75 + i * .33, 0, 1.45, .27, 1.8,
+                                i % 2 ? M.pale : M.green);
+                        }
+                    }
+                    const outline = new T.Mesh(
+                        new T.RingGeometry(1.5, 1.63, 36),
+                        new T.MeshBasicMaterial({ color: '#ffe19a', side: T.DoubleSide, transparent: true, opacity: .9 })
+                    );
+                    outline.rotation.x = -Math.PI / 2; outline.position.y = .085; outline.visible = false; root.add(outline);
+                    const pick = mesh(root, new T.BoxGeometry(2.3, 2.8, long + 1),
+                        new T.MeshBasicMaterial({ visible: false }), 0, 1.3, 0, false);
+                    pick.userData = { kind: 'agv', id: f.id }; pickables.push(pick);
+                    if (trailer) {
+                        const tp = mesh(trailer, new T.BoxGeometry(2, 2.3, 2.4),
+                            new T.MeshBasicMaterial({ visible: false }), 0, 1.15, 0, false);
+                        tp.userData = { kind: 'agv', id: f.id }; pickables.push(tp);
+                    }
+                    return { root, wheels, tower, payload, trailer, trailerLoad, outline, history: [], lastHistory: null };
+                }
+
+                function poseOnCurve(curve, d, offset = .72) {
+                    const len = curve.getLength(), t = T.MathUtils.clamp(d / len, 0, 1);
+                    const pos = curve.getPointAt(t), tangent = curve.getTangentAt(t).normalize();
+                    const right = V(tangent.z, 0, -tangent.x);
+                    pos.addScaledVector(right, offset);
+                    return { pos, tangent };
+                }
+                function forwardRoute(f) {
+                    const base = edges.get(f.route).points;
+                    const points = f.direction === 1 ? base : base.slice().reverse();
+                    return makeCurve(points);
+                }
+                for (const f of fleet) {
+                    const view = makeAGV(f); fleetViews.set(f.id, view);
+                    const curve = f.route ? forwardRoute(f) : null;
+                    const distance = curve ? curve.getLength() * f.progress : 0;
+                    const initial = curve ? poseOnCurve(curve, distance).pos : V(...f.dock);
+                    view.root.position.copy(initial);
+                    if (curve) {
+                        const tangent = poseOnCurve(curve, distance).tangent;
+                        view.root.rotation.y = Math.atan2(tangent.x, tangent.z);
+                    }
+                    if (view.trailer) {
+                        view.trailer.position.copy(initial).add(V(0, 0, -3.2).applyAxisAngle(V(0, 1, 0), view.root.rotation.y));
+                        view.trailer.rotation.y = view.root.rotation.y;
+                    }
+                    motion.set(f.id, {
+                        curve, distance, currentSpeed: f.status === 'RUNNING' ? f.speed * 4 : 0,
+                        dwell: 0, mode: f.route ? 'shuttle' : 'dock', turn: null
+                    });
+                    setStack(view.tower, f.status);
+                }
+
+                // Grounded warning beacon; no flashing fullscreen / high-frequency strobe.
+                const faultBeacon = new T.Group();
+                const beaconRing = new T.Mesh(new T.RingGeometry(2.1, 2.35, 40),
+                    new T.MeshBasicMaterial({ color: '#cc493e', transparent: true, opacity: .7, side: T.DoubleSide, depthWrite: false }));
+                beaconRing.rotation.x = -Math.PI / 2; beaconRing.position.y = .1; faultBeacon.add(beaconRing);
+                const beaconPost = stackLight(faultBeacon, 1.8, 0, 0, 1.3); setStack(beaconPost, 'FAULT');
+                faultBeacon.visible = false; dynamicRoot.add(faultBeacon);
+
+                function angleLerp(a, b, amount) {
+                    return a + Math.atan2(Math.sin(b - a), Math.cos(b - a)) * amount;
+                }
+                function sampleTrailer(view) {
+                    if (!view.trailer) return;
+                    const head = view.root.position;
+                    if (!view.lastHistory || head.distanceTo(view.lastHistory) > .13) {
+                        view.history.unshift(head.clone());
+                        view.lastHistory = head.clone();
+                        if (view.history.length > 110) view.history.pop();
+                    }
+                    let total = 0;
+                    for (let i = 1; i < view.history.length; i++) {
+                        const a = view.history[i - 1], b = view.history[i], seg = a.distanceTo(b);
+                        if (total + seg >= 3.3) {
+                            const target = a.clone().lerp(b, (3.3 - total) / seg);
+                            view.trailer.position.lerp(target, .32);
+                            const ahead = head.clone().sub(view.trailer.position);
+                            view.trailer.rotation.y = angleLerp(view.trailer.rotation.y, Math.atan2(ahead.x, ahead.z), .2);
+                            return;
+                        }
+                        total += seg;
+                    }
+                }
+
+                /* ======================================================================
+                       7. DISRUPTION STATE MACHINE
+                       No teleporting the standby, no fabricated live optimizer connection.
+                       The 90-second line-side buffer absorbs this scripted exception.
+                       ====================================================================== */
+                let elapsed = 0, event = null, selected = null, free = false, tourIndex = -1;
+                let routeEventColor = 0;
+                const logs = [];
+                function log(text, kind = '') {
+                    const stamp = String(Math.floor(elapsed / 60)).padStart(2, '0') + ':' +
+                        String(Math.floor(elapsed % 60)).padStart(2, '0');
+                    logs.push({ text: `${stamp}  ${text}`, kind });
+                    if (logs.length > 3) logs.shift();
+                    $('event-log').replaceChildren(...logs.map(l => {
+                        const div = document.createElement('div'); div.className = 'log ' + l.kind; div.textContent = l.text; return div;
+                    }));
+                }
+                log('Simulation ready · local dispatch logic · 90 s line-side buffer');
+
+                const activeCoilSites = new Set();
+                const CHARGE_RATE_KW = plantGraph.metadata.chargeRateKw || 45;
+                const SOC_SAFETY_MIN = 0.15;
+                const SOC_TARGET = 0.70;
+
+                function setStatus(f, status) { f.status = status; setStack(fleetViews.get(f.id).tower, status) }
+
+                function triggerDedicatedCharge(f, targetNodeId = 'coil') {
+                    if (f.status === 'CHARGING') return;
+                    const targetNode = nodes.get(targetNodeId) || nodes.get('coil');
+                    f._priorTask = { route: f.route, direction: f.direction, progress: f.progress, payload: f.payload };
+                    setStatus(f, 'CHARGING');
+                    f.isCoilCharging = true;
+                    f.lastCharge = `Dedicated @ ${targetNode.code} ${targetNode.short}`;
+                    log(`${f.id} critical battery — rerouting to ${targetNode.code} ${targetNode.short} for dedicated charge.`, 'fault');
+                    const s = motion.get(f.id), view = fleetViews.get(f.id);
+                    const start = view.root.position;
+                    const padPos = targetNode.position;
+                    // Dedicated route to wireless inductive charging coil pad
+                    s.curve = makeCurve([[start.x, 0, start.z], [(start.x + padPos[0]) * 0.5, 0, (start.z + padPos[2]) * 0.5 + 4], [padPos[0], 0, padPos[2]]]);
+                    s.distance = 0;
+                    s.mode = 'charge-travel';
+                    s.targetCoil = targetNode.id;
+                    refreshSelection();
+                }
+
+                function beginDisruption() {
+                    if (event) return;
+                    const stalled = fleet.find(f => f.id === 'AGV-04');
+                    const standby = fleet.find(f => f.id === 'AGV-02');
+                    event = { start: elapsed, phase: 'DETECT', stalled, standby, covered: false };
+                    setStatus(stalled, 'FAULT');
+                    nodes.get('hub').status = 'FAULT'; setStack(stationLights.get('hub'), 'FAULT');
+                    faultBeacon.visible = true;
+                    $('disrupt').disabled = true; $('disrupt').textContent = 'Andon red · detecting blockage…';
+                    routeEventColor = 0;
+                    log('Hub outbound aisle blocked · AGV-04 safety stop', 'fault');
+
+                    // Tie-in: Force AGV-05 to critical battery as part of disruption to showcase dedicated charging fallback
+                    const lowBattAgv = fleet.find(f => f.id === 'AGV-05');
+                    if (lowBattAgv && lowBattAgv.status !== 'CHARGING') {
+                        lowBattAgv.soc = 0.11;
+                        lowBattAgv.battery = 11;
+                        triggerDedicatedCharge(lowBattAgv, 'coil');
+                    }
+
+                    refreshSelection();
+                }
+                $('disrupt').addEventListener('click', beginDisruption);
+
+                function dispatchStandby() {
+                    const f = event.standby, s = motion.get(f.id), view = fleetViews.get(f.id);
+                    const start = view.root.position;
+                    // Join the hub outbound lane via a short, marked service spur.
+                    s.curve = makeCurve([[start.x, 0, start.z], [46, 0, 17], [46, 0, 5]]);
+                    s.distance = 0; s.mode = 'rescue-approach'; s.dwell = 0;
+                    f.route = 'marriage-feed'; f.payload = 'Replacement sequenced trim / chassis kit'; f.direction = 1;
+                    setStatus(f, 'RUNNING');
+                    event.phase = 'DISPATCH';
+                    $('disrupt').textContent = 'Standby AGV-02 approaching hub…';
+                    log('AGV-04 stalled at Logistics Hub — dispatching standby unit', 'warn');
+                }
+                function rescueArrived(f, s) {
+                    if (s.mode === 'rescue-approach') {
+                        s.curve = makeCurve(edges.get('marriage-feed').points);
+                        s.distance = 0; s.mode = 'rescue-cover'; event.phase = 'COVER'; event.covered = true;
+                        routeEventColor = 1;
+                        $('disrupt').textContent = 'AGV-02 covering · delivering kit…';
+                        log('Standby AGV-02 covering route — line rate maintained, zero stoppage', 'ok');
+                    } else if (s.mode === 'rescue-cover') {
+                        // Turn through the far-side buffer apron, return on the opposite half-lane.
+                        const at = fleetViews.get(f.id).root.position;
+                        s.curve = makeCurve([[at.x, 0, at.z], [8, 0, 9], [12, 0, 10], [46, 0, 10], [57, 0, 17]]);
+                        s.distance = 0; s.mode = 'rescue-return'; event.phase = 'RETURN';
+                        f.payload = 'Empty return cart';
+                        fleetViews.get(f.id).trailerLoad.visible = false;
+                        const broken = event.stalled;
+                        setStatus(broken, 'RUNNING');
+                        nodes.get('hub').status = 'RUNNING'; setStack(stationLights.get('hub'), 'RUNNING');
+                        faultBeacon.visible = false;
+                        $('disrupt').textContent = 'Obstruction cleared · standby returning…';
+                        log('Kit delivered · AGV-04 released after aisle clearance', 'ok');
+                    } else if (s.mode === 'rescue-return') {
+                        s.curve = null; s.distance = 0; s.mode = 'dock'; s.currentSpeed = 0;
+                        f.route = null; f.payload = 'Standby sequenced kit'; f.progress = 0;
+                        setStatus(f, 'IDLE');
+                        fleetViews.get(f.id).trailerLoad.visible = true;
+                        event = null;
+                        $('disrupt').disabled = false; $('disrupt').textContent = 'Simulate Line Disruption';
+                        log('Standby AGV-02 docked · buffer restored · ready to repeat', 'ok');
+                    }
+                    refreshSelection();
+                }
+
+                function startShuttleTurn(f, s, view) {
+                    f.direction *= -1;
+                    const next = forwardRoute(f), target = poseOnCurve(next, 0);
+                    const start = view.root.position.clone();
+                    const outgoing = V(Math.sin(view.root.rotation.y), 0, Math.cos(view.root.rotation.y));
+                    const end = target.pos.clone();
+                    // Semicircular end-of-aisle maneuver, preserving position and heading.
+                    s.turn = new T.CubicBezierCurve3(
+                        start, start.clone().addScaledVector(outgoing, 2.8),
+                        end.clone().addScaledVector(target.tangent, -2.8), end
+                    );
+                    s.turn.arcLengthDivisions = 100; s.turn.updateArcLengths();
+                    s.turnDistance = 0; s.nextCurve = next; s.mode = 'turn';
+                    f.payload = f.direction === 1 ? edges.get(f.route).payload :
+                        (f.type === 'bodycarrier' ? 'Empty body skid' : 'Empty return fixture / cart');
+                    view.payload.visible = f.direction === 1;
+                    if (view.trailerLoad) view.trailerLoad.visible = f.direction === 1;
+                }
+
+                function updateFleet(dt) {
+                    if (event && event.phase === 'DETECT' && elapsed - event.start >= 1.5) dispatchStandby();
+                    activeCoilSites.clear();
+                    const coilNodes = plantGraph.nodes.filter(n => n.coilSite);
+
+                    for (const f of fleet) {
+                        const s = motion.get(f.id), view = fleetViews.get(f.id);
+                        const running = f.status === 'RUNNING';
+                        const isChargeTravel = f.status === 'CHARGING' && s.mode === 'charge-travel';
+                        let desired = running ? f.speed * plantGraph.metadata.simulationTimeScale : 0;
+                        if (isChargeTravel) desired = f.speed * plantGraph.metadata.simulationTimeScale * 0.85;
+                        const rescue = s.mode.startsWith('rescue');
+                        if (s.curve && s.mode !== 'turn' && (running || isChargeTravel)) {
+                            const remaining = s.curve.getLength() - s.distance;
+                            // Approach end points with a bounded braking profile.
+                            desired = Math.min(desired, Math.sqrt(Math.max(.01, remaining) * 10) + .12);
+                        }
+                        if (s.mode === 'turn') desired = running ? 2.0 : 0;
+                        s.currentSpeed = T.MathUtils.lerp(s.currentSpeed, desired, 1 - Math.exp(-dt * 5));
+                        if (s.curve && s.currentSpeed > .001) {
+                            if (s.mode === 'turn') {
+                                s.turnDistance = Math.min(s.turn.getLength(), s.turnDistance + s.currentSpeed * dt);
+                                const u = s.turnDistance / s.turn.getLength();
+                                const p = s.turn.getPointAt(u), t = s.turn.getTangentAt(u);
+                                view.root.position.copy(p);
+                                view.root.rotation.y = angleLerp(view.root.rotation.y, Math.atan2(t.x, t.z), 1 - Math.exp(-dt * 10));
+                                if (u >= 1) {
+                                    s.curve = s.nextCurve; s.distance = 0; s.mode = 'shuttle'; s.turn = null;
+                                }
+                            } else {
+                                s.distance = Math.min(s.curve.getLength(), s.distance + s.currentSpeed * dt);
+                                const offset = rescue && s.mode !== 'rescue-cover' ? 0 : (isChargeTravel ? 0 : .72);
+                                const pose = poseOnCurve(s.curve, s.distance, offset);
+                                // Offset changes at a docking transition are eased, not snapped.
+                                view.root.position.lerp(pose.pos, 1 - Math.exp(-dt * 16));
+                                view.root.rotation.y = angleLerp(view.root.rotation.y, Math.atan2(pose.tangent.x, pose.tangent.z), 1 - Math.exp(-dt * 9));
+                                f.progress = s.distance / s.curve.getLength();
+                                if (s.distance >= s.curve.getLength() - .002) {
+                                    if (isChargeTravel) {
+                                        s.mode = 'charge-dock';
+                                        s.currentSpeed = 0;
+                                        s.curve = null;
+                                    } else if (running) {
+                                        if (rescue) rescueArrived(f, s);
+                                        else startShuttleTurn(f, s, view);
+                                    }
+                                }
+                            }
+                            view.wheels.forEach(w => w.rotation.x += s.currentSpeed * dt / .25);
+                            sampleTrailer(view);
+                        }
+
+                        // Battery simulation & Wireless Inductive Charging
+                        let atCoil = null;
+                        const vPos = view.root.position;
+                        for (const cn of coilNodes) {
+                            if (Math.hypot(vPos.x - cn.position[0], vPos.z - cn.position[2]) < 9.5) {
+                                atCoil = cn;
+                                break;
+                            }
+                        }
+
+                        if (running) {
+                            // Normal operational discharge
+                            f.soc = Math.max(0.05, f.soc - dt * 0.0006);
+                            f.battery = Math.round(f.soc * 100);
+                            if (f.soc < SOC_SAFETY_MIN) {
+                                triggerDedicatedCharge(f, 'coil');
+                            }
+                        }
+
+                        if (atCoil) {
+                            // Opportunity charging (Tier 1): dwell, wait, idle, or turn at a coil pad node
+                            const isDwelling = !running || s.currentSpeed < 0.35 || s.mode === 'turn' || f.status === 'IDLE';
+                            if (isDwelling && f.status !== 'FAULT' && f.status !== 'CHARGING') {
+                                activeCoilSites.add(atCoil.id);
+                                f.isCoilCharging = true;
+                                const oppCharge = (CHARGE_RATE_KW / f.battKwh / 3600) * dt * plantGraph.metadata.simulationTimeScale * 4.5;
+                                f.soc = Math.min(1.0, f.soc + oppCharge);
+                                f.battery = Math.round(f.soc * 100);
+                                f._oppAccrued = (f._oppAccrued || 0) + oppCharge;
+                                f.lastCharge = `Opportunity @ ${atCoil.code} ${atCoil.short}`;
+                            } else if (f._oppAccrued >= 0.025) {
+                                const gain = Math.round(f._oppAccrued * 100);
+                                log(`${f.id} opportunity-charged +${gain}% at ${atCoil.code} ${atCoil.short} — zero added downtime.`, 'ok');
+                                f._oppAccrued = 0;
+                                f.isCoilCharging = false;
+                            }
+                        } else {
+                            if (f._oppAccrued >= 0.025) {
+                                const gain = Math.round(f._oppAccrued * 100);
+                                log(`${f.id} opportunity-charged +${gain}% at 01 COIL — zero added downtime.`, 'ok');
+                            }
+                            f._oppAccrued = 0;
+                            if (f.status !== 'CHARGING') f.isCoilCharging = false;
+                        }
+
+                        // Dedicated charging (Tier 2): docked at coil pad until SOC_TARGET (70%) reached
+                        if (f.status === 'CHARGING') {
+                            const targetId = s.targetCoil || 'coil';
+                            activeCoilSites.add(targetId);
+                            f.isCoilCharging = true;
+                            // 45 kW fast coil charging rate
+                            const chgRate = (CHARGE_RATE_KW / f.battKwh / 3600) * dt * plantGraph.metadata.simulationTimeScale * 7.5;
+                            f.soc = Math.min(1.0, f.soc + chgRate);
+                            f.battery = Math.round(f.soc * 100);
+                            if (f.soc >= SOC_TARGET) {
+                                f.soc = SOC_TARGET;
+                                f.battery = Math.round(f.soc * 100);
+                                f.isCoilCharging = false;
+                                const targetNode = nodes.get(targetId);
+                                f.lastCharge = `Dedicated @ ${targetNode ? targetNode.code + ' ' + targetNode.short : '01 COIL'} (70% reached)`;
+                                log(`${f.id} dedicated charge complete (70% SOC) — resuming route assignment.`, 'ok');
+                                if (f._priorTask && f._priorTask.route) {
+                                    f.route = f._priorTask.route;
+                                    f.direction = f._priorTask.direction || 1;
+                                    f.payload = f._priorTask.payload;
+                                    s.curve = forwardRoute(f);
+                                    s.distance = 0;
+                                    s.mode = 'shuttle';
+                                    setStatus(f, 'RUNNING');
+                                } else {
+                                    s.mode = 'dock';
+                                    setStatus(f, 'IDLE');
+                                }
+                                f._priorTask = null;
+                                refreshSelection();
+                            }
+                        }
+
+                        view.outline.visible = selected?.kind === 'agv' && selected.id === f.id;
+                        if (selected?.kind === 'station' && f.route) {
+                            const edge = edges.get(f.route);
+                            view.outline.visible = edge.from === selected.id || edge.to === selected.id;
+                        }
+                    }
+                    if (event) {
+                        const pos = fleetViews.get(event.stalled.id).root.position;
+                        faultBeacon.position.copy(pos);
+                        beaconRing.material.opacity = .5 + .18 * Math.sin(elapsed * 3);
+                    }
+                }
+
+                /* ======================================================================
+                       8. SCROLL CAMERA / FREE EXPLORATION
+                       ====================================================================== */
+                const tourNodes = plantGraph.tour.map(id => nodes.get(id));
+                const cameraPoints = tourNodes.map((n, i) => {
+                    const mobile = innerWidth < 650;
+                    return V(n.building[0] + (mobile ? 18 : 15), mobile ? 29 : 23,
+                        n.building[2] + (n.id === 'yard' ? 36 : 30));
+                });
+                const lookPoints = tourNodes.map(n => V(n.building[0], 2.6, n.building[2]));
+                const cameraPath = new T.CatmullRomCurve3(cameraPoints, false, 'centripetal');
+                const lookPath = new T.CatmullRomCurve3(lookPoints, false, 'centripetal');
+                let targetProgress = 0, progress = 0;
+                const lookCurrent = lookPoints[0].clone();
+                camera.position.copy(cameraPoints[0]); camera.lookAt(lookCurrent);
+                let reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+                const scrollMax = () => Math.max(1, document.documentElement.scrollHeight - innerHeight);
+                function readScroll() {
+                    targetProgress = T.MathUtils.clamp(scrollY / scrollMax(), 0, 1);
+                    if (scrollY > 15) $('prompt').style.opacity = '0';
+                }
+                addEventListener('scroll', readScroll, { passive: true }); readScroll();
+
+                function goToZone(index) {
+                    if (free) setFree(false);
+                    const i = T.MathUtils.clamp(index, 0, tourNodes.length - 1);
+                    scrollTo({ top: scrollMax() * i / (tourNodes.length - 1), behavior: reducedMotion ? 'auto' : 'smooth' });
+                }
+                function setFree(value) {
+                    free = value; controls.enabled = value;
+                    $('orbit').classList.toggle('active', value);
+                    $('orbit').setAttribute('aria-pressed', String(value));
+                    $('orbit').textContent = value ? 'Return to scroll' : 'Free explore';
+                    $('camera-mode').textContent = value ? 'Orbit · drag / pinch / zoom' : 'Scroll · walk the value stream';
+                    document.body.style.overflow = value ? 'hidden' : '';
+                    if (value) {
+                        controls.target.copy(lookCurrent); controls.update();
+                    } else {
+                        lookCurrent.copy(controls.target); readScroll();
+                    }
+                    $('prompt').style.opacity = '0';
+                }
+                $('orbit').onclick = () => setFree(!free);
+                $('reset').onclick = () => goToZone(0);
+                $('prev').onclick = () => goToZone(tourIndex - 1);
+                $('next').onclick = () => goToZone(tourIndex + 1);
+                addEventListener('keydown', e => {
+                    if (e.target instanceof HTMLButtonElement) return;
+                    if (e.key.toLowerCase() === 'f') setFree(!free);
+                    if (e.key === 'Escape') clearSelection();
+                });
+
+                function setStory(index) {
+                    if (index === tourIndex) return;
+                    tourIndex = index;
+                    const n = tourNodes[index];
+                    const sColor = STATION_COLORS[n.id] || 'var(--color-bright-sun)';
+                    $('zone-index').textContent = String(index + 1).padStart(2, '0') + ' / 09 · ' + n.stage;
+                    $('zone-index').style.color = sColor;
+                    $('zone-title').textContent = n.name;
+                    $('zone-copy').textContent = n.copy;
+                    $('zone-metric').textContent = n.metric;
+                    $('zone-metric').style.borderLeftColor = sColor;
+                    $('zone-metric').style.color = sColor;
+                    $('progress-fill').style.background = sColor;
+                    $('prev').disabled = index === 0;
+                    $('next').disabled = index === tourNodes.length - 1;
+                }
+                function updateCamera(dt) {
+                    if (free) {
+                        controls.update();
+                        // Keep story tied to the nearest process zone being inspected.
+                        let best = Infinity, idx = 0;
+                        tourNodes.forEach((n, i) => {
+                            const d = controls.target.distanceToSquared(V(...n.building));
+                            if (d < best) { best = d; idx = i }
+                        });
+                        setStory(idx);
+                    } else {
+                        progress = T.MathUtils.lerp(progress, targetProgress, 1 - Math.exp(-dt * (reducedMotion ? 9 : 4)));
+                        const p = cameraPath.getPoint(progress), look = lookPath.getPoint(progress);
+                        camera.position.lerp(p, 1 - Math.exp(-dt * 4.7));
+                        lookCurrent.lerp(look, 1 - Math.exp(-dt * 5));
+                        camera.lookAt(lookCurrent);
+                        setStory(Math.min(tourNodes.length - 1, Math.round(progress * (tourNodes.length - 1))));
+                    }
+                    $('progress-fill').style.width = (free ? tourIndex / (tourNodes.length - 1) * 100 : progress * 100) + '%';
+                }
+                setStory(0);
+
+                /* ======================================================================
+                       9. PICKING / HTML INFO / LABEL PROJECTION
+                       ====================================================================== */
+                const raycaster = new T.Raycaster(), pointer = new T.Vector2();
+                let pointerDown = null;
+                renderer.domElement.addEventListener('pointerdown', e => {
+                    pointerDown = { x: e.clientX, y: e.clientY, time: performance.now() };
+                });
+                renderer.domElement.addEventListener('pointerup', e => {
+                    if (!pointerDown) return;
+                    const moved = Math.hypot(e.clientX - pointerDown.x, e.clientY - pointerDown.y);
+                    const held = performance.now() - pointerDown.time; pointerDown = null;
+                    if (moved > 7 || held > 600) return;
+                    pointer.set(e.clientX / innerWidth * 2 - 1, -e.clientY / innerHeight * 2 + 1);
+                    raycaster.setFromCamera(pointer, camera);
+                    scene.updateMatrixWorld(true);
+                    const hits = raycaster.intersectObjects(pickables, false);
+                    if (hits.length) {
+                        selected = { ...hits[0].object.userData };
+                        $('selection').hidden = false; refreshSelection();
+                    } else clearSelection();
+                });
+                renderer.domElement.addEventListener('pointercancel', () => pointerDown = null);
+                function clearSelection() {
+                    selected = null; $('selection').hidden = true; $('selection-note').textContent = '';
+                }
+                $('selection-close').onclick = clearSelection;
+                function fields(rows) {
+                    $('selection-fields').replaceChildren(...rows.flatMap(([a, b]) => {
+                        const dt = document.createElement('dt'), dd = document.createElement('dd');
+                        dt.textContent = a; dd.textContent = b; return [dt, dd];
+                    }));
+                }
+                function refreshSelection() {
+                    if (!selected) return;
+                    if (selected.kind === 'agv') {
+                        const f = fleet.find(f => f.id === selected.id), e = edges.get(f.route);
+                        $('selection-kind').textContent = 'Fleet telemetry · simulated';
+                        $('selection-title').textContent = f.id;
+                        $('selection-title').style.color = 'var(--text-primary)';
+                        fields([
+                            ['Battery SOC', Math.round(f.soc * 100) + '% (' + (f.battKwh || 12.0).toFixed(1) + ' kWh)'],
+                            ['Status', f.status + (f.isCoilCharging ? ' (Wireless Coil Active)' : '')],
+                            ['Last Charge', f.lastCharge || 'Opportunity @ 01 COIL'],
+                            ['Platform', f.type === 'bodycarrier' ? 'Body-skid carrier' : f.type],
+                            ['Payload', f.payload],
+                            ['Route', e ? nodes.get(e.from).name + ' → ' + nodes.get(e.to).name :
+                                f.status === 'CHARGING' ? 'Dedicated Charging Pocket' : 'Standby pocket 01']
+                        ]);
+                        $('selection-note').textContent = f.isCoilCharging ? 'Wireless inductive coil charging in progress' : '';
+                    } else {
+                        const n = nodes.get(selected.id);
+                        const connected = plantGraph.edges.filter(e => e.from === n.id || e.to === n.id);
+                        const ids = fleet.filter(f => connected.some(e => e.id === f.route)).map(f => f.id);
+                        $('selection-kind').textContent = 'Station / connected material flows';
+                        $('selection-title').textContent = n.name;
+                        $('selection-title').style.color = STATION_COLORS[n.id] || 'var(--text-primary)';
+                        fields([
+                            ['Andon', n.status + (n.coilSite ? ' · Inductive Coil Pad Ready' : '')],
+                            ['Process', n.stage],
+                            ['Lanes', String(connected.length) + ' connected hand-offs'],
+                            ['Fleet', ids.length ? ids.join(' · ') : 'No AGV currently assigned'],
+                            ['Model', n.metric]
+                        ]);
+                        $('selection-note').textContent = 'Highlighted: ' + n.short + ' lanes and assigned AGVs';
+                    }
+                }
+
+                const labelViews = [];
+                for (const n of plantGraph.nodes) {
+                    const el = document.createElement('div'); el.className = 'world-label station-label';
+                    el.dataset.station = n.id;
+                    const b = document.createElement('b'); b.textContent = n.code;
+                    el.append(b, document.createTextNode(n.short)); $('labels').appendChild(el);
+                    labelViews.push({ el, kind: 'station', id: n.id, pos: V(n.building[0], n.size[1] + 1.4, n.building[2]), w: 100 });
+                }
+                for (const f of fleet) {
+                    const el = document.createElement('div'); el.className = 'world-label agv-label';
+                    const ring = document.createElement('span'); ring.className = 'batt-ring';
+                    const dot = document.createElement('i'); dot.className = 'status-dot';
+                    ring.appendChild(dot);
+                    const text = document.createElement('span'); el.append(ring, text); $('labels').appendChild(el);
+                    labelViews.push({ el, dot, ring, text, kind: 'agv', id: f.id, w: 142 });
+                }
+                const project = V();
+                function updateLabels() {
+                    const reserved = [];
+                    const ordered = labelViews.slice().sort((a, b) => {
+                        const rank = v => selected?.id === v.id ? 0 : v.kind === 'agv' ? 1 : v.id === tourNodes[tourIndex].id ? 2 : 3;
+                        return rank(a) - rank(b);
+                    });
+                    for (const l of ordered) {
+                        const p = l.kind === 'agv' ? fleetViews.get(l.id).root.position.clone().add(V(0, 3, 0)) : l.pos;
+                        const distance = camera.position.distanceTo(p);
+                        project.copy(p).project(camera);
+                        const x = (project.x * .5 + .5) * innerWidth, y = (-project.y * .5 + .5) * innerHeight;
+                        let visible = project.z > -1 && project.z < 1 && x > 15 && x < innerWidth - 15 && y > 60 && y < innerHeight - 20;
+                        if (l.kind === 'station' && distance > 135) visible = false;
+                        const rect = { x: x - l.w / 2, y: y - 22, w: l.w, h: 23 };
+                        if (visible && reserved.some(r => rect.x < r.x + r.w && rect.x + rect.w > r.x && rect.y < r.y + r.h && rect.y + rect.h > r.y))
+                            visible = false;
+                        l.el.style.display = visible ? 'block' : 'none';
+                        if (!visible) continue;
+                        reserved.push(rect);
+                        l.el.style.transform = `translate(${Math.round(x)}px,${Math.round(y)}px) translate(-50%,-100%)`;
+                        if (l.kind === 'station') {
+                            l.el.classList.toggle('selected', selected?.id === l.id || tourNodes[tourIndex].id === l.id);
+                            l.el.classList.toggle('coil-active', activeCoilSites.has(l.id));
+                        }
+                    }
+                }
+                function updateTelemetry() {
+                    for (const l of labelViews) {
+                        if (l.kind !== 'agv') continue;
+                        const f = fleet.find(f => f.id === l.id);
+                        l.dot.style.background = STATUS[f.status];
+                        const battColor = f.soc > 0.5 ? 'var(--color-steel-teal)' : (f.soc >= 0.25 ? 'var(--color-bright-sun)' : 'var(--color-safety-orange)');
+                        if (l.ring) l.ring.style.borderColor = battColor;
+                        l.text.textContent = `${f.id}  ${Math.round(f.soc * 100)}%  ${{
+                            RUNNING: 'RUN', IDLE: 'WAIT', CHARGING: 'CHG', FAULT: 'STOP'
+                        }[f.status]}`;
+                    }
+                    $('running-count').textContent = fleet.filter(f => f.status === 'RUNNING').length + ' / ' + fleet.length;
+                    const totalSoc = fleet.reduce((sum, f) => sum + (f.soc !== undefined ? f.soc : f.battery / 100), 0);
+                    const avgSoc = Math.round((totalSoc / fleet.length) * 100);
+                    const socEl = $('fleet-soc');
+                    if (socEl) {
+                        socEl.textContent = avgSoc + '%';
+                        socEl.style.color = avgSoc > 50 ? 'var(--color-steel-teal)' : (avgSoc >= 25 ? 'var(--color-bright-sun)' : 'var(--color-safety-orange)');
+                    }
+                    refreshSelection();
+                }
+                updateTelemetry();
+
+                const amber = new T.Color('#FDB913'), green = new T.Color('#4A7C82');
+                function updateLaneHighlights(dt) {
+                    for (const e of plantGraph.edges) {
+                        const view = routeViews.get(e.id);
+                        const connected = selected?.kind === 'station' && (e.from === selected.id || e.to === selected.id);
+                        const assigned = selected?.kind === 'agv' && fleet.find(f => f.id === selected.id).route === e.id;
+                        const disrupted = event && e.id === 'marriage-feed';
+                        view.highlight.visible = !!(connected || assigned || disrupted);
+                        const target = disrupted && routeEventColor ? green : amber;
+                        view.highlight.material.color.lerp(target, 1 - Math.exp(-dt * 3));
+                    }
+                }
+
+                /* ======================================================================
+                       10. TOP-DOWN MINIMAP — full graph, current fleet and camera footprint.
+                       ====================================================================== */
+                const map = $('map'), ctx = map.getContext('2d');
+                let mapW = 322, mapH = 156, mapDpr = 1;
+                function resizeMap() {
+                    const r = map.getBoundingClientRect(); mapW = r.width; mapH = r.height;
+                    mapDpr = Math.min(devicePixelRatio || 1, 2);
+                    map.width = Math.round(mapW * mapDpr); map.height = Math.round(mapH * mapDpr);
+                }
+                function mapPoint(x, z) { return { x: 12 + (x + 84) / 180 * (mapW - 24), y: 10 + (z + 61) / 132 * (mapH - 20) } }
+                function drawMap() {
+                    ctx.setTransform(mapDpr, 0, 0, mapDpr, 0, 0); ctx.clearRect(0, 0, mapW, mapH);
+                    ctx.strokeStyle = '#283E48'; ctx.lineWidth = 1;
+                    for (const e of plantGraph.edges) {
+                        const route = routeViews.get(e.id), curve = route.curve;
+                        ctx.strokeStyle = route.highlight.visible ? '#FDB913' : '#3E5C68';
+                        if (event && e.id === 'marriage-feed') ctx.strokeStyle = event.covered ? '#4A7C82' : '#FDB913';
+                        ctx.beginPath();
+                        for (let i = 0; i <= 35; i++) {
+                            const p = curve.getPointAt(i / 35), s = mapPoint(p.x, p.z);
+                            i ? ctx.lineTo(s.x, s.y) : ctx.moveTo(s.x, s.y);
+                        }
+                        ctx.stroke();
+                    }
+                    for (const n of plantGraph.nodes) {
+                        const b = mapPoint(n.building[0], n.building[2]);
+                        const w = n.size[0] / 180 * (mapW - 24), h = n.size[2] / 132 * (mapH - 20);
+                        const sColor = STATION_COLORS[n.id] || '#7A8480';
+                        const isSelected = selected?.id === n.id || tourNodes[tourIndex].id === n.id;
+
+                        // Fill: solid station color when active/selected, Big Stone base when idle
+                        ctx.fillStyle = isSelected ? sColor : '#1C2B33';
+                        ctx.fillRect(b.x - w / 2, b.y - h / 2, w, h);
+
+                        // Station box outline in station color (glowing/thicker when active)
+                        ctx.strokeStyle = isSelected ? (n.id === 'paint' ? '#FFFFFF' : '#FDB913') : sColor;
+                        ctx.lineWidth = isSelected ? 2 : 1;
+                        ctx.strokeRect(b.x - w / 2, b.y - h / 2, w, h);
+
+                        // Station code / short label
+                        ctx.fillStyle = isSelected && (n.id === 'paint' || sColor === '#FDB913') ? '#142027' : '#E8E4DC';
+                        ctx.font = 'bold ' + (mapW < 240 ? '6' : '7') + 'px monospace'; ctx.textAlign = 'center';
+                        ctx.fillText(n.short, b.x, b.y + 2);
+
+                        // Process hand-off port
+                        const port = mapPoint(n.position[0], n.position[2]);
+                        ctx.fillStyle = sColor; ctx.fillRect(port.x - 1.5, port.y - 1.5, 3, 3);
+                    }
+                    for (const f of fleet) {
+                        const p = fleetViews.get(f.id).root.position, b = mapPoint(p.x, p.z);
+                        ctx.fillStyle = STATUS[f.status]; ctx.beginPath(); ctx.arc(b.x, b.y, 2.4, 0, Math.PI * 2); ctx.fill();
+                        if (selected?.id === f.id) {
+                            ctx.strokeStyle = '#FDB913'; ctx.beginPath(); ctx.arc(b.x, b.y, 4.5, 0, Math.PI * 2); ctx.stroke();
+                        }
+                    }
+                    const cp = mapPoint(camera.position.x, camera.position.z);
+                    const look = free ? controls.target : lookCurrent, lp = mapPoint(look.x, look.z);
+                    const theta = Math.atan2(lp.y - cp.y, lp.x - cp.x);
+                    ctx.save(); ctx.translate(cp.x, cp.y); ctx.rotate(theta);
+                    ctx.fillStyle = '#E8E4DC'; ctx.beginPath(); ctx.moveTo(5, 0); ctx.lineTo(-3, -3); ctx.lineTo(-3, 3); ctx.closePath(); ctx.fill();
+                    ctx.fillStyle = 'rgba(74, 124, 130, 0.20)'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(24, -11); ctx.lineTo(24, 11); ctx.closePath(); ctx.fill();
+                    ctx.restore();
+                }
+                resizeMap();
+
+                /* ======================================================================
+                       11. FRAME LOOP / ADAPTIVE RESOLUTION / RESPONSIVE LIFECYCLE
+                       ====================================================================== */
+                let last = performance.now(), uiTimer = 0, frameAverage = 16, perfTimer = 0;
+                let paused = document.hidden;
+                document.addEventListener('visibilitychange', () => {
+                    paused = document.hidden; last = performance.now();
+                });
+
+                function resize() {
+                    camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+                    renderer.setSize(innerWidth, innerHeight); resizeMap(); readScroll();
+                    // The same route remains continuous while the viewing offset adapts.
+                    const mobile = innerWidth < 650;
+                    cameraPoints.forEach((v, i) => {
+                        const n = tourNodes[i];
+                        v.set(n.building[0] + (mobile ? 18 : 15), mobile ? 29 : 23, n.building[2] + (n.id === 'yard' ? 36 : 30));
+                    });
+                    cameraPath.updateArcLengths();
+                }
+                addEventListener('resize', resize);
+                renderer.domElement.addEventListener('webglcontextlost', e => {
+                    e.preventDefault();
+                    fail('The graphics context was interrupted. Close other graphics-heavy tabs, then reload CONVOY.');
+                });
+
+                function frame(now) {
+                    requestAnimationFrame(frame);
+                    const raw = now - last; last = now;
+                    if (paused) return;
+                    const dt = Math.min(raw / 1000, .05);
+                    elapsed += dt; uiTimer += dt; perfTimer += dt;
+                    updateFleet(dt);
+                    updateCamera(dt);
+                    updateLaneHighlights(dt);
+
+                    // Robot and press cycles are deliberately restrained; no rapid strobes.
+                    if (!reducedMotion) {
+                        robotPivots.forEach(r => r.g.rotation.y = r.base + Math.sin(elapsed * .6 + r.phase) * .12);
+                        pressHeads.forEach(p => {
+                            const cycle = Math.sin(elapsed * .75 + p.phase);
+                            p.g.position.y = p.base - Math.max(0, cycle) * 1.7;
+                        });
+                        dust.rotation.y = Math.sin(elapsed * .025) * .007;
+                        const active = Math.sin(elapsed * 1.35) > .4;
+                        sparks.visible = active;
+                        if (active) {
+                            for (let i = 0; i < sparkSeeds.length; i++) {
+                                const s = sparkSeeds[i], age = (elapsed * 1.6 + s.s) % 1;
+                                sparkArray[i * 3] = Math.cos(s.a) * age * (.4 + s.r * 1.3);
+                                sparkArray[i * 3 + 1] = age * 1.2 - age * age * 2;
+                                sparkArray[i * 3 + 2] = Math.sin(s.a) * age * (.4 + s.r * 1.3);
+                            }
+                            sparkGeo.attributes.position.needsUpdate = true;
+                            weldLight.intensity = 1.4;
+                        } else weldLight.intensity = .8;
+                    } else sparks.visible = false;
+
+                    camera.updateMatrixWorld();
+                    updateLabels();
+                    if (uiTimer > .12) {
+                        uiTimer = 0; updateTelemetry(); drawMap();
+                    }
+                    renderer.render(scene, camera);
+
+                    // Back off pixel density on slower devices; never alter simulation state.
+                    frameAverage = frameAverage * .98 + Math.min(raw, 80) * .02;
+                    if (perfTimer > 6) {
+                        perfTimer = 0;
+                        if (frameAverage > 23 && pixelRatio > 1) {
+                            pixelRatio = Math.max(1, pixelRatio - .2);
+                            renderer.setPixelRatio(pixelRatio);
+                            renderer.setSize(innerWidth, innerHeight);
+                        }
+                    }
+                    if (elapsed > 10) $('prompt').style.opacity = '0';
+                }
+                requestAnimationFrame(frame);
+
+            } catch (error) {
+                fail('This browser could not initialize the 3D scene. Use a current browser with WebGL enabled. ' + error.message);
+            }
+        })();
+    </script>
+</body>
+
+</html>

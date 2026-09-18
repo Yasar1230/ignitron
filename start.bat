@@ -1,0 +1,8 @@
+@echo off
+cd /d "%~dp0"
+echo ========================================================
+echo Starting CONVOY Material Flow System at http://localhost:8000
+echo ========================================================
+start http://localhost:8000/convoy.html
+python -m http.server 8000
+pause
