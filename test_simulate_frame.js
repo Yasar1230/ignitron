@@ -69,7 +69,7 @@ global.performance = { now: () => Date.now() };
 // We need THREE.js!
 // Let's see if THREE is imported via cdn or if we can mock or load three
 console.log('Testing script loading...');
-const html = fs.readFileSync('convoy.html', 'utf8');
+const html = fs.readFileSync('index.html', 'utf8');
 const scriptMatch = html.split('<script>')[1].split('</script>')[0];
 
 console.log('Script length:', scriptMatch.length);

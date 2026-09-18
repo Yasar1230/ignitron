@@ -8,14 +8,14 @@ async function main() {
     `--remote-debugging-port=${port}`,
     '--disable-gpu',
     '--window-size=1600,900',
-    'http://localhost:8000/convoy.html'
+    'http://localhost:8000/index.html'
   ]);
 
   try {
     await new Promise(r => setTimeout(r, 1800));
     const listRes = await fetch(`http://localhost:${port}/json/list`);
     const tabs = await listRes.json();
-    const tab = tabs.find(t => t.url.includes('convoy.html'));
+    const tab = tabs.find(t => t.url.includes('index.html') || t.url.includes('localhost:8000'));
     const ws = new WebSocket(tab.webSocketDebuggerUrl);
 
     let msgId = 1;

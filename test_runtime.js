@@ -1,7 +1,7 @@
 const fs = require('fs');
 
-// We can extract the JS code from convoy.html and test it with mock objects
-const html = fs.readFileSync('convoy.html', 'utf8');
+// We can extract the JS code from index.html and test it with mock objects
+const html = fs.readFileSync('index.html', 'utf8');
 const scriptMatch = html.split('<script>')[1].split('</script>')[0];
 
 console.log('Script extracted, testing for runtime crash scenarios...');

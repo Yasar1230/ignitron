@@ -1,6 +1,6 @@
 const fs = require('fs');
 
-const html = fs.readFileSync('convoy.html', 'utf8');
+const html = fs.readFileSync('index.html', 'utf8');
 const pStart = html.indexOf('const plantGraph =');
 const pEnd = html.indexOf('window.CONVOY =');
 let code = html.substring(pStart, pEnd);
